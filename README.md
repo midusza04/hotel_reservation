@@ -104,6 +104,33 @@ docker compose down
 - `GET /users/{user_id}/reservations`
 - `POST /admin/hotels`
 
+### A1 - Autoryzacja JWT + role
+
+- Logowanie: `POST /auth/login` zwraca JWT (Bearer).
+- Dostep:
+  - `POST /reservations`, `POST /reservations/cancel`, `GET /users/{user_id}/reservations` wymagaja roli `user` i zgodnosci `user_id`.
+  - `POST /admin/hotels` wymaga roli `admin`.
+- Konta demo (in-memory): `user1/pass` (user), `admin/admin` (admin).
+
+### A2/A3 - TTL hold i idempotencja
+
+- Hold ma TTL (domyslnie 300s). Po wygasnieciu hold zwalnia pokoj automatycznie przy kolejnych akcjach na hotelu.
+- `POST /reservations` akceptuje `idempotency_key` (string). Ponowne wyslanie zadania z tym samym kluczem i `user_id`
+  zwraca ten sam rezultat bez tworzenia duplikatu rezerwacji.
+
+### A4 - Polityka anulacji i zwroty
+
+- Anulacja do 1h od utworzenia rezerwacji: zwrot 100%.
+- Po 1h: zwrot 0%.
+- W odpowiedzi z `POST /reservations/cancel` zwracane sa pola `refund_percent` i `refund_amount`.
+
+### B1/B2 - Postgres + snapshot/restore aktorow
+
+- Backend zapisuje dane do Postgresa (tabele `hotels`, `reservations`).
+- Stan hoteli i rezerwacji jest odtwarzany przy starcie (restore z bazy).
+- Holdy nie sa zapisywane - po restarcie nie istnieja.
+- Snapshot hoteli jest wykonywany cyklicznie (co 60s).
+
 ## 5) Jak testowac szybko
 
 1. Wejdz na `http://localhost:8000/docs`.
@@ -112,19 +139,73 @@ docker compose down
 4. Sprawdz `GET /users/{user_id}/reservations`.
 5. Anuluj przez `POST /reservations/cancel`.
 
+### Przyklady requestow (PowerShell)
+
+**Login (user)**
+```powershell
+$login = Invoke-RestMethod -Method POST http://localhost:8000/auth/login `
+  -ContentType "application/json" `
+  -Body '{"username":"user1","password":"pass"}'
+$token = $login.access_token
+```
+
+**Wyszukiwanie hoteli**
+```powershell
+Invoke-RestMethod -Method POST http://localhost:8000/hotels/search `
+  -ContentType "application/json" `
+  -Body '{"city":"Warszawa"}'
+```
+
+**Rezerwacja z idempotency_key**
+```powershell
+Invoke-RestMethod -Method POST http://localhost:8000/reservations `
+  -Headers @{ Authorization = "Bearer $token" } `
+  -ContentType "application/json" `
+  -Body '{"user_id":"user1","hotel_id":"h-waw-1","room_type":"single","nights":1,"payment_method":"card","idempotency_key":"demo-1"}'
+```
+Powtorz to samo wywolanie z tym samym `idempotency_key` - wynik powinien byc identyczny.
+
+**Lista rezerwacji uzytkownika**
+```powershell
+Invoke-RestMethod -Method GET http://localhost:8000/users/user1/reservations `
+  -Headers @{ Authorization = "Bearer $token" }
+```
+
+**Anulacja i zwrot**
+```powershell
+Invoke-RestMethod -Method POST http://localhost:8000/reservations/cancel `
+  -Headers @{ Authorization = "Bearer $token" } `
+  -ContentType "application/json" `
+  -Body '{"user_id":"user1","reservation_id":"<reservation_id>"}'
+```
+Odpowiedz zawiera `refund_percent` i `refund_amount`.
+
+**Login (admin) + dodanie hotelu**
+```powershell
+$adminLogin = Invoke-RestMethod -Method POST http://localhost:8000/auth/login `
+  -ContentType "application/json" `
+  -Body '{"username":"admin","password":"admin"}'
+$adminToken = $adminLogin.access_token
+
+Invoke-RestMethod -Method POST http://localhost:8000/admin/hotels `
+  -Headers @{ Authorization = "Bearer $adminToken" } `
+  -ContentType "application/json" `
+  -Body '{"hotel_id":"h-gdn-1","name":"Gdansk Bay Hotel","city":"Gdansk","rooms":{"single":{"available":3,"price":250.0}}}'
+```
+
 ## 6) Plan dalszego rozwoju
 
 ### Etap A - domena i logika
 
-1. Dodac prawdziwa autoryzacje (JWT + role: user/admin).
-2. Dodac TTL dla hold (wygasanie rezerwacji tymczasowych).
-3. Dodac idempotencje operacji rezerwacji i platnosci.
-4. Dodac polityke anulacji i zwroty.
+1. Dodac prawdziwa autoryzacje (JWT + role: user/admin) - zrobione.
+2. Dodac TTL dla hold (wygasanie rezerwacji tymczasowych) - zrobione.
+3. Dodac idempotencje operacji rezerwacji i platnosci - zrobione.
+4. Dodac polityke anulacji i zwroty - zrobione.
 
 ### Etap B - dane i trwalosc
 
-1. Dodac Event Store lub baze (np. Postgres) dla trwalego zapisu rezerwacji.
-2. Snapshot stanu aktorow albo restore po restarcie.
+1. Dodac Event Store lub baze (np. Postgres) dla trwalego zapisu rezerwacji - zrobione.
+2. Snapshot stanu aktorow albo restore po restarcie - zrobione.
 3. Wydzielic audit log.
 
 ### Etap C - rozproszenie i niezawodnosc
@@ -149,8 +230,11 @@ docker compose down
 
 ## 7) Proponowany najblizszy krok
 
-Najlepiej teraz zrobic etap `A2` i `A3`:
-- wygasanie hold,
-- idempotentny booking request.
+Najlepiej teraz zrobic etap `B1` i `B2`:
+- event store lub baza (np. Postgres),
+- snapshot stanu aktorow / restore po restarcie.
+Najlepiej teraz zrobic etap `B3` i `C1`:
+- audit log,
+- uruchomic klaster Ray (head + workers).
 
 To od razu zwiekszy realizm systemu rozproszonego i ograniczy race conditions.

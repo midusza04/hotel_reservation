@@ -1,8 +1,12 @@
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, suppress
+from datetime import datetime, timedelta, timezone
 
 import ray
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import JWTError, jwt
 
 from actors import (
     AdminActor,
@@ -11,6 +15,7 @@ from actors import (
     PaymentActor,
     ReservationHistoryActor,
 )
+from db import init_db
 from models import (
     HotelUpsertRequest,
     LoginRequest,
@@ -21,6 +26,19 @@ from models import (
     SearchRequest,
     UserReservationsResponse,
 )
+
+
+JWT_SECRET = "dev-secret"
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRES_MINUTES = 60
+SNAPSHOT_INTERVAL_SECONDS = 60
+
+_FAKE_USERS = {
+    "user1": {"password": "pass", "role": "user"},
+    "admin": {"password": "admin", "role": "admin"},
+}
+
+_http_bearer = HTTPBearer()
 
 
 def _init_ray():
@@ -73,8 +91,51 @@ def _seed_data(admin_actor):
         )
 
 
+def _create_access_token(username: str, role: str) -> str:
+    payload = {
+        "sub": username,
+        "role": role,
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=JWT_EXPIRES_MINUTES),
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def _get_current_user(credentials: HTTPAuthorizationCredentials = Depends(_http_bearer)) -> dict:
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Nieprawidlowy token")
+
+    username = payload.get("sub")
+    role = payload.get("role")
+    if not username or not role:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Nieprawidlowy token")
+
+    return {"username": username, "role": role}
+
+
+def _require_role(required_role: str):
+    def _guard(user: dict = Depends(_get_current_user)) -> dict:
+        if user["role"] != required_role:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Brak uprawnien")
+        return user
+
+    return _guard
+
+
+async def _snapshot_loop(app: FastAPI):
+    while True:
+        try:
+            ray.get(app.state.inventory.snapshot_all.remote())
+        except Exception:
+            pass
+        await asyncio.sleep(SNAPSHOT_INTERVAL_SECONDS)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    init_db()
     _init_ray()
 
     inventory = _get_or_create_named_actor(InventoryActor, "inventory")
@@ -91,7 +152,11 @@ async def lifespan(app: FastAPI):
     app.state.history = history
     app.state.coordinator = coordinator
     app.state.admin = admin
+    snapshot_task = asyncio.create_task(_snapshot_loop(app))
     yield
+    snapshot_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await snapshot_task
 
 
 app = FastAPI(
@@ -117,7 +182,10 @@ def health_check():
 
 @app.post("/auth/login", response_model=LoginResponse)
 def login(payload: LoginRequest):
-    token = f"demo-token-{payload.username}"
+    user = _FAKE_USERS.get(payload.username)
+    if not user or user["password"] != payload.password:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bledne dane logowania")
+    token = _create_access_token(payload.username, user["role"])
     return LoginResponse(access_token=token)
 
 
@@ -133,7 +201,9 @@ def search_hotels(payload: SearchRequest):
 
 
 @app.post("/reservations", response_model=ReservationResponse)
-def create_reservation(payload: ReservationCreateRequest):
+def create_reservation(payload: ReservationCreateRequest, user: dict = Depends(_get_current_user)):
+    if payload.user_id != user["username"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Brak uprawnien")
     result = ray.get(
         app.state.coordinator.book_room.remote(
             user_id=payload.user_id,
@@ -141,13 +211,16 @@ def create_reservation(payload: ReservationCreateRequest):
             room_type=payload.room_type,
             nights=payload.nights,
             payment_method=payload.payment_method,
+            idempotency_key=payload.idempotency_key,
         )
     )
     return ReservationResponse(**result)
 
 
 @app.post("/reservations/cancel", response_model=ReservationResponse)
-def cancel_reservation(payload: ReservationCancelRequest):
+def cancel_reservation(payload: ReservationCancelRequest, user: dict = Depends(_get_current_user)):
+    if payload.user_id != user["username"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Brak uprawnien")
     result = ray.get(
         app.state.coordinator.cancel_booking.remote(
             user_id=payload.user_id,
@@ -158,13 +231,15 @@ def cancel_reservation(payload: ReservationCancelRequest):
 
 
 @app.get("/users/{user_id}/reservations", response_model=UserReservationsResponse)
-def user_reservations(user_id: str):
+def user_reservations(user_id: str, user: dict = Depends(_get_current_user)):
+    if user_id != user["username"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Brak uprawnien")
     reservations = ray.get(app.state.history.list_user_reservations.remote(user_id=user_id))
     return UserReservationsResponse(user_id=user_id, reservations=reservations)
 
 
 @app.post("/admin/hotels")
-def upsert_hotel(payload: HotelUpsertRequest):
+def upsert_hotel(payload: HotelUpsertRequest, user: dict = Depends(_require_role("admin"))):
     rooms = {key: value.model_dump() for key, value in payload.rooms.items()}
     return ray.get(
         app.state.admin.upsert_hotel.remote(

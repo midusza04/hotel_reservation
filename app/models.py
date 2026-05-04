@@ -37,6 +37,7 @@ class ReservationCreateRequest(BaseModel):
     room_type: str
     nights: int = Field(default=1, ge=1)
     payment_method: str = "card"
+    idempotency_key: Optional[str] = Field(default=None, min_length=1)
 
 
 class ReservationCancelRequest(BaseModel):
@@ -50,6 +51,8 @@ class ReservationResponse(BaseModel):
     reservation_id: Optional[str] = None
     payment_id: Optional[str] = None
     total_price: Optional[float] = None
+    refund_percent: Optional[int] = None
+    refund_amount: Optional[float] = None
 
 
 class UserReservationsResponse(BaseModel):

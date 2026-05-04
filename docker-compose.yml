@@ -8,6 +8,10 @@ services:
       - "8265:8265"   # Ray Dashboard
     volumes:
       - ./app:/app
+    environment:
+      - DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/ray_hotel
+    depends_on:
+      - db
     restart: unless-stopped
 
   frontend:
@@ -20,3 +24,19 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: ray-hotel-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=ray_hotel
+    ports:
+      - "5432:5432"
+    volumes:
+      - ray-hotel-db:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  ray-hotel-db:
