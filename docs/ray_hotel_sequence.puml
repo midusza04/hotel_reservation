@@ -1,0 +1,111 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam dpi 170
+skinparam defaultFontName Arial
+skinparam ArrowColor #3b4a57
+skinparam SequenceLifeLineBorderColor #6f7f8d
+skinparam SequenceLifeLineBackgroundColor #f7fafc
+skinparam ParticipantBorderColor #6f7f8d
+skinparam ParticipantBackgroundColor #ffffff
+skinparam ActorBorderColor #6f7f8d
+skinparam ActorBackgroundColor #ffffff
+
+title Ray Hotel - diagram sekwencji (Ray Actors + FastAPI)
+
+actor "Uzytkownik" as U
+participant "Frontend\n(index.html)" as FE
+participant "FastAPI\n(main.py)" as API
+participant "BookingCoordinatorActor" as BC
+participant "InventoryActor" as IA
+participant "HotelActor" as HA
+participant "PaymentActor" as PA
+participant "ReservationHistoryActor" as RH
+
+== 1) Wyszukiwanie hoteli ==
+U -> FE : Klik "Szukaj"
+FE -> API : POST /hotels/search
+API -> IA : search_hotels(city,max_price,room_type)
+loop dla kazdego hotelu
+  IA -> HA : matches(...)
+  HA --> IA : true/false
+  alt hotel pasuje
+    IA -> HA : get_offer()
+    HA --> IA : oferta hotelu
+  end
+end
+IA --> API : lista ofert
+API --> FE : 200 OK + JSON
+
+== 2) Rezerwacja (happy path) ==
+U -> FE : Klik "Zarezerwuj"
+FE -> API : POST /reservations
+API -> BC : book_room(user,hotel,room,nights,payment)
+
+BC -> IA : hold_room(hotel, room, user, nights)
+IA -> HA : try_hold(...)
+HA --> IA : {ok, hold_id, total_price}
+IA --> BC : hold_result
+
+BC -> PA : process_payment(user, total_price, method)
+PA --> BC : {ok, payment_id}
+
+BC -> IA : confirm_hold(hotel, hold_id)
+IA -> HA : confirm_hold(hold_id)
+HA --> IA : {ok, reservation_id, ...}
+IA --> BC : confirmed
+
+BC -> RH : add_reservation(reservation)
+RH --> BC : {ok:true}
+
+BC --> API : {ok:true, reservation_id, payment_id, total_price}
+API --> FE : 200 OK + ReservationResponse
+
+== 3) Rezerwacja (blad platnosci i rollback) ==
+U -> FE : Klik "Zarezerwuj" z payment_method=reject
+FE -> API : POST /reservations
+API -> BC : book_room(...)
+
+BC -> IA : hold_room(...)
+IA -> HA : try_hold(...)
+HA --> IA : {ok:true, hold_id}
+IA --> BC : hold_result
+
+BC -> PA : process_payment(..., "reject")
+PA --> BC : {ok:false, message}
+
+BC -> IA : release_hold(hotel, hold_id)
+IA -> HA : release_hold(hold_id)
+HA --> IA : {ok:true}
+IA --> BC : released
+
+BC --> API : {ok:false, message}
+API --> FE : 200 OK + error payload
+
+== 4) Anulowanie rezerwacji ==
+U -> FE : Klik "Anuluj rezerwacje"
+FE -> API : POST /reservations/cancel
+API -> BC : cancel_booking(user_id, reservation_id)
+
+BC -> IA : cancel_reservation(hotel_id, reservation_id)
+IA -> HA : cancel_reservation(reservation_id)
+HA --> IA : {ok:true}
+IA --> BC : cancelled
+
+BC -> RH : cancel_reservation(reservation_id)
+RH --> BC : {ok:true}
+
+BC --> API : {ok:true, message:"Rezerwacja anulowana"}
+API --> FE : 200 OK + ReservationResponse
+
+note right of BC
+  BC pelni role orkiestratora (saga-like):
+  1) hold pokoju
+  2) platnosc
+  3) confirm
+  4) zapis historii
+  rollback hold przy bledzie platnosci
+end note
+
+@enduml

@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ray Hotel - Frontend Test Panel</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <section class="hero">
+        <h1>Ray Hotel</h1>
+        <p>Panel do testowania implementacji backendu.</p>
+
+        <div class="api-row">
+          <input id="apiBase" value="http://localhost:8000" />
+          <button id="saveApiBtn" class="ghost">Zapisz API URL</button>
+          <button id="healthBtn" class="secondary">Health check</button>
+        </div>
+        <div id="status" class="status err">Status: brak polaczenia</div>
+      </section>
+
+      <section class="grid">
+        <article class="panel">
+          <h2>1) Logowanie (demo)</h2>
+          <p class="hint">POST /auth/login</p>
+          <div class="row">
+            <input id="loginUsername" placeholder="username" value="student1" />
+            <input id="loginPassword" placeholder="password" type="password" value="secret" />
+          </div>
+          <div class="row-actions">
+            <button id="loginBtn">Zaloguj</button>
+          </div>
+        </article>
+
+        <article class="panel">
+          <h2>2) Wyszukiwanie hoteli</h2>
+          <p class="hint">POST /hotels/search</p>
+          <div class="row-3">
+            <input id="searchCity" placeholder="Miasto (np. Warszawa)" />
+            <input id="searchMaxPrice" placeholder="Max cena" type="number" />
+            <input id="searchRoomType" placeholder="Typ pokoju (single/double)" />
+          </div>
+          <div class="row-actions">
+            <button id="searchBtn">Szukaj</button>
+          </div>
+        </article>
+
+        <article class="panel">
+          <h2>3) Rezerwacja</h2>
+          <p class="hint">POST /reservations</p>
+          <div class="row-4">
+            <input id="bookUserId" placeholder="user_id" value="u1" />
+            <input id="bookHotelId" placeholder="hotel_id" value="h-waw-1" />
+            <input id="bookRoomType" placeholder="room_type" value="single" />
+            <input id="bookNights" type="number" min="1" placeholder="nights" value="2" />
+          </div>
+          <div class="row">
+            <input id="bookPaymentMethod" placeholder="payment_method (card/reject)" value="card" />
+            <button id="reserveBtn">Zarezerwuj</button>
+          </div>
+        </article>
+
+        <article class="panel">
+          <h2>4) Historia i anulowanie</h2>
+          <p class="hint">GET /users/{id}/reservations + POST /reservations/cancel</p>
+          <div class="row">
+            <input id="historyUserId" placeholder="user_id do historii" value="u1" />
+            <button id="historyBtn" class="ghost">Pobierz historie</button>
+          </div>
+          <div class="row">
+            <input id="cancelUserId" placeholder="user_id do anulowania" value="u1" />
+            <input id="cancelReservationId" placeholder="reservation_id" />
+          </div>
+          <div class="row-actions">
+            <button id="cancelBtn" class="secondary">Anuluj rezerwacje</button>
+          </div>
+        </article>
+
+        <article class="panel">
+          <h2>5) Dodanie hotelu</h2>
+          <p class="hint">POST /admin/hotels</p>
+          <div class="row-3">
+            <input id="adminHotelId" placeholder="hotel_id" value="h-gdn-1" />
+            <input id="adminHotelName" placeholder="name" value="Gdansk Harbor Hotel" />
+            <input id="adminCity" placeholder="city" value="Gdansk" />
+          </div>
+          <textarea id="adminRooms">{
+  "single": { "available": 4, "price": 240 },
+  "double": { "available": 3, "price": 360 }
+}</textarea>
+          <div class="row-actions">
+            <button id="adminUpsertBtn">Dodaj / zaktualizuj hotel</button>
+          </div>
+        </article>
+
+        <article class="panel">
+          <h2>Wynik ostatniego wywolania</h2>
+          <div class="actions">
+            <button id="copyOutputBtn" class="ghost">Kopiuj wynik</button>
+            <button id="clearOutputBtn" class="ghost">Wyczysc</button>
+          </div>
+          <pre id="output">Wynik pojawi sie tutaj...</pre>
+        </article>
+      </section>
+    </main>
+
+    <script>
+      const output = document.getElementById("output");
+      const statusEl = document.getElementById("status");
+      const apiBaseInput = document.getElementById("apiBase");
+
+      const savedApi = localStorage.getItem("ray_hotel_api_base");
+      if (savedApi) {
+        apiBaseInput.value = savedApi;
+      }
+
+      const getApiBase = () => apiBaseInput.value.trim().replace(/\/$/, "");
+
+      const setStatus = (text, ok = false) => {
+        statusEl.textContent = text;
+        statusEl.className = ok ? "status ok" : "status err";
+      };
+
+      const show = (value) => {
+        output.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+      };
+
+      const callApi = async (path, options = {}) => {
+        const url = `${getApiBase()}${path}`;
+        const response = await fetch(url, {
+          headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+          ...options,
+        });
+
+        const text = await response.text();
+        let data;
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch {
+          data = { raw: text };
+        }
+
+        return { ok: response.ok, status: response.status, data };
+      };
+
+      const handleApiCall = async (label, fn) => {
+        try {
+          const result = await fn();
+          show({ endpoint: label, ...result });
+          setStatus(`Status: ${result.ok ? "OK" : "BLAD"} (${result.status})`, result.ok);
+          return result;
+        } catch (error) {
+          show({ endpoint: label, ok: false, error: String(error) });
+          setStatus("Status: BLAD polaczenia", false);
+          return null;
+        }
+      };
+
+      document.getElementById("saveApiBtn").addEventListener("click", () => {
+        localStorage.setItem("ray_hotel_api_base", getApiBase());
+        setStatus(`Status: zapisano API URL (${getApiBase()})`, true);
+      });
+
+      document.getElementById("healthBtn").addEventListener("click", async () => {
+        await handleApiCall("GET /health", () => callApi("/health", { method: "GET" }));
+      });
+
+      document.getElementById("loginBtn").addEventListener("click", async () => {
+        const body = {
+          username: document.getElementById("loginUsername").value,
+          password: document.getElementById("loginPassword").value,
+        };
+        await handleApiCall("POST /auth/login", () =>
+          callApi("/auth/login", { method: "POST", body: JSON.stringify(body) })
+        );
+      });
+
+      document.getElementById("searchBtn").addEventListener("click", async () => {
+        const city = document.getElementById("searchCity").value || null;
+        const maxPriceRaw = document.getElementById("searchMaxPrice").value;
+        const roomType = document.getElementById("searchRoomType").value || null;
+        const body = {
+          city,
+          max_price: maxPriceRaw ? Number(maxPriceRaw) : null,
+          room_type: roomType,
+        };
+
+        await handleApiCall("POST /hotels/search", () =>
+          callApi("/hotels/search", { method: "POST", body: JSON.stringify(body) })
+        );
+      });
+
+      document.getElementById("reserveBtn").addEventListener("click", async () => {
+        const body = {
+          user_id: document.getElementById("bookUserId").value,
+          hotel_id: document.getElementById("bookHotelId").value,
+          room_type: document.getElementById("bookRoomType").value,
+          nights: Number(document.getElementById("bookNights").value || 1),
+          payment_method: document.getElementById("bookPaymentMethod").value || "card",
+        };
+
+        const result = await handleApiCall("POST /reservations", () =>
+          callApi("/reservations", { method: "POST", body: JSON.stringify(body) })
+        );
+
+        if (result && result.ok && result.data.reservation_id) {
+          document.getElementById("cancelReservationId").value = result.data.reservation_id;
+          document.getElementById("historyUserId").value = body.user_id;
+          document.getElementById("cancelUserId").value = body.user_id;
+        }
+      });
+
+      document.getElementById("historyBtn").addEventListener("click", async () => {
+        const userId = document.getElementById("historyUserId").value;
+        await handleApiCall("GET /users/{user_id}/reservations", () =>
+          callApi(`/users/${encodeURIComponent(userId)}/reservations`, { method: "GET" })
+        );
+      });
+
+      document.getElementById("cancelBtn").addEventListener("click", async () => {
+        const body = {
+          user_id: document.getElementById("cancelUserId").value,
+          reservation_id: document.getElementById("cancelReservationId").value,
+        };
+        await handleApiCall("POST /reservations/cancel", () =>
+          callApi("/reservations/cancel", { method: "POST", body: JSON.stringify(body) })
+        );
+      });
+
+      document.getElementById("adminUpsertBtn").addEventListener("click", async () => {
+        let rooms;
+        try {
+          rooms = JSON.parse(document.getElementById("adminRooms").value);
+        } catch {
+          show({ ok: false, message: "Niepoprawny JSON w rooms" });
+          setStatus("Status: BLAD walidacji formularza", false);
+          return;
+        }
+
+        const body = {
+          hotel_id: document.getElementById("adminHotelId").value,
+          name: document.getElementById("adminHotelName").value,
+          city: document.getElementById("adminCity").value,
+          rooms,
+        };
+
+        await handleApiCall("POST /admin/hotels", () =>
+          callApi("/admin/hotels", { method: "POST", body: JSON.stringify(body) })
+        );
+      });
+
+      document.getElementById("copyOutputBtn").addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(output.textContent);
+          setStatus("Status: wynik skopiowany", true);
+        } catch {
+          setStatus("Status: nie udalo sie skopiowac", false);
+        }
+      });
+
+      document.getElementById("clearOutputBtn").addEventListener("click", () => {
+        output.textContent = "Wynik pojawi sie tutaj...";
+      });
+    </script>
+  </body>
+</html>

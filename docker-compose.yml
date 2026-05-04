@@ -1,0 +1,22 @@
+services:
+  backend:
+    build: .
+    container_name: ray-hotel-backend
+    shm_size: "1gb"
+    ports:
+      - "8000:8000"   # FastAPI
+      - "8265:8265"   # Ray Dashboard
+    volumes:
+      - ./app:/app
+    restart: unless-stopped
+
+  frontend:
+    image: nginx:1.27-alpine
+    container_name: ray-hotel-frontend
+    ports:
+      - "8080:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    depends_on:
+      - backend
+    restart: unless-stopped
