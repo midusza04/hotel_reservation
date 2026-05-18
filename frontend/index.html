@@ -1,0 +1,777 @@
+﻿<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ray Hotel Reservations</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ========== HEADER ========== -->
+<header id="header">
+  <div class="logo">🏨 RayHotel</div>
+  <nav id="nav">
+    <a href="#hotels"  data-view="hotels">Hotels</a>
+    <a href="#history" data-view="history" data-auth="required">My Bookings</a>
+    <a href="#admin"   data-view="admin"   data-auth="required">Admin</a>
+  </nav>
+  <span id="user-badge"></span>
+  <button id="btn-logout" class="btn-ghost btn-sm" style="display:none" onclick="logout()">Log out</button>
+  <button id="btn-login-nav" class="btn-primary btn-sm" onclick="navigate('login')">Log in</button>
+</header>
+
+<!-- ========== CONTENT ========== -->
+<main id="content">
+
+  <!-- ===== LOGIN ===== -->
+  <div id="view-login" class="view active">
+    <div class="login-box">
+      <div class="login-logo">
+        <h1>🏨 RayHotel</h1>
+        <p>Distributed reservations powered by Ray</p>
+      </div>
+      <div class="card">
+        <h2>Sign in</h2>
+        <div id="login-alert" class="alert"></div>
+        <div class="field">
+          <label>Username</label>
+          <input id="login-username" type="text" value="user1" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input id="login-password" type="password" value="pass" autocomplete="current-password" />
+        </div>
+        <div class="btn-row" style="margin-top:0">
+          <button id="btn-login" class="btn-primary" style="flex:1" onclick="doLogin()">
+            <span class="spinner"></span> Sign in
+          </button>
+        </div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-top:0.8rem">
+          Demo: <code>user1 / pass</code> &nbsp;·&nbsp; <code>admin / admin</code>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== HOTELS ===== -->
+  <div id="view-hotels" class="view">
+    <div class="card">
+      <h2>Search hotels</h2>
+      <div class="grid-3">
+        <div class="field">
+          <label>City</label>
+          <input id="search-city" type="text" placeholder="e.g. Warszawa" />
+        </div>
+        <div class="field">
+          <label>Room type</label>
+          <input id="search-room-type" type="text" placeholder="e.g. single" />
+        </div>
+        <div class="field">
+          <label>Max price / night ($)</label>
+          <input id="search-max-price" type="number" min="1" placeholder="e.g. 500" />
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top:0">
+        <button class="btn-primary" onclick="searchHotels(false)">
+          <span class="spinner"></span> Search
+        </button>
+        <button class="btn-ghost" onclick="searchHotels(true)">Show all</button>
+      </div>
+    </div>
+
+    <div id="hotels-alert" class="alert"></div>
+    <div id="hotels-grid" class="hotels-grid"></div>
+  </div>
+
+  <!-- ===== CHECKOUT ===== -->
+  <div id="view-checkout" class="view">
+    <div style="margin-bottom:1rem">
+      <button class="btn-ghost btn-sm" onclick="navigate('hotels')">&#8592; Back to hotels</button>
+    </div>
+    <div class="checkout-layout">
+      <!-- Left -->
+      <div>
+        <div class="card" id="checkout-hotel-info"></div>
+
+        <div class="card">
+          <h2>Select room</h2>
+          <div id="rooms-list" class="rooms-list"></div>
+        </div>
+
+        <div class="card">
+          <h2>Booking details</h2>
+          <div id="checkout-alert" class="alert"></div>
+          <div class="field">
+            <label>Number of nights</label>
+            <input id="co-nights" type="number" min="1" value="1" onchange="updatePriceSummary()" />
+          </div>
+          <div class="field">
+            <label>Payment method</label>
+            <select id="co-payment">
+              <option value="card">Credit card</option>
+              <option value="cash">Cash</option>
+            </select>
+          </div>
+          <div class="btn-row" style="margin-top:0">
+            <button id="btn-book" class="btn-primary" style="flex:1" onclick="doBook()">
+              <span class="spinner"></span> Confirm booking
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: price summary -->
+      <div>
+        <div class="card" style="position:sticky;top:72px">
+          <h2>Price summary</h2>
+          <div class="price-summary">
+            <div class="price-row"><span>Hotel</span><span id="ps-hotel">&#8212;</span></div>
+            <div class="price-row"><span>Room type</span><span id="ps-room">&#8212;</span></div>
+            <div class="price-row"><span>Nights</span><span id="ps-nights">&#8212;</span></div>
+            <div class="price-row"><span>Price / night</span><span id="ps-pnight">&#8212;</span></div>
+            <div class="price-total"><span>Total</span><span id="ps-total">&#8212;</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== HISTORY ===== -->
+  <div id="view-history" class="view">
+    <div class="card">
+      <h2>My bookings</h2>
+      <div class="btn-row" style="margin-top:0;margin-bottom:0.5rem">
+        <button class="btn-ghost" id="btn-refresh-history" onclick="loadHistory()">
+          <span class="spinner"></span> Refresh
+        </button>
+      </div>
+      <div id="history-alert" class="alert"></div>
+      <div id="history-list" class="reservations-list"></div>
+    </div>
+  </div>
+
+  <!-- ===== ADMIN ===== -->
+  <div id="view-admin" class="view">
+    <div class="grid-2" style="gap:1rem;align-items:start">
+
+      <!-- Add hotel -->
+      <div>
+        <div class="card">
+          <h2>Add / update hotel</h2>
+          <div id="add-hotel-alert" class="alert"></div>
+          <div class="field">
+            <label>Hotel ID (unique key)</label>
+            <input id="ah-id" type="text" placeholder="h-waw-new" />
+          </div>
+          <div class="field">
+            <label>Hotel name</label>
+            <input id="ah-name" type="text" placeholder="Grand Hotel" />
+          </div>
+          <div class="field">
+            <label>City</label>
+            <input id="ah-city" type="text" placeholder="Warszawa" />
+          </div>
+          <div class="field">
+            <label>Room types</label>
+            <div style="display:grid;grid-template-columns:1fr 80px 90px 32px;gap:0.4rem;margin-bottom:0.3rem">
+              <span style="font-size:0.75rem;color:var(--muted);font-weight:700;text-transform:uppercase">Type name</span>
+              <span style="font-size:0.75rem;color:var(--muted);font-weight:700;text-transform:uppercase">Rooms</span>
+              <span style="font-size:0.75rem;color:var(--muted);font-weight:700;text-transform:uppercase">$/night</span>
+              <span></span>
+            </div>
+            <div id="ah-rooms-list"></div>
+            <button type="button" class="btn-ghost btn-sm" style="margin-top:0.5rem" onclick="addRoomRow()">+ Add room type</button>
+          </div>
+          <div class="btn-row" style="margin-top:0.5rem">
+            <button id="btn-add-hotel" class="btn-primary" onclick="doAddHotel()">
+              <span class="spinner"></span> Save hotel
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Audit logs -->
+      <div>
+        <div class="card">
+          <h2>Audit log</h2>
+          <div class="grid-2" style="margin-bottom:0.7rem">
+            <div class="field">
+              <label>Event type</label>
+              <input id="audit-type" type="text" placeholder="BOOKING_CREATED" />
+            </div>
+            <div class="field">
+              <label>Actor / user ID</label>
+              <input id="audit-actor" type="text" placeholder="user1" />
+            </div>
+          </div>
+          <div class="btn-row" style="margin-top:0;margin-bottom:0.5rem">
+            <button id="btn-load-audit" class="btn-ghost" onclick="loadAuditLogs()">
+              <span class="spinner"></span> Load logs
+            </button>
+          </div>
+          <div id="audit-alert" class="alert"></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Time</th><th>Event</th><th>Actor</th><th>Entity</th></tr>
+              </thead>
+              <tbody id="audit-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Hotels in system (search all) -->
+    <div class="card" style="margin-top:1rem">
+      <h2>Hotels in system</h2>
+      <div class="btn-row" style="margin-top:0;margin-bottom:0.5rem">
+        <button id="btn-load-admin-hotels" class="btn-ghost" onclick="loadAdminHotels()">
+          <span class="spinner"></span> Refresh
+        </button>
+      </div>
+      <div id="admin-hotels-alert" class="alert"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Name</th><th>City</th><th>Min price</th><th>Rooms</th></tr>
+          </thead>
+          <tbody id="admin-hotels-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+/* ============================================================
+   STATE
+   ============================================================ */
+var state = {
+  token:    localStorage.getItem('ray_hotel_token') || null,
+  username: localStorage.getItem('ray_hotel_user')  || null,
+  role:     localStorage.getItem('ray_hotel_role')   || null,
+  currentHotel: null,
+  selectedRoomType: null,
+  selectedRoomPrice: null,
+  _hotelsCache: [],
+  _roomKeys: [],
+};
+
+function _parseJwtRole(token) {
+  try {
+    var payload = token.split('.')[1];
+    // base64url → base64
+    payload = payload.replace(/-/g, '+').replace(/_/g, '/');
+    var pad = payload.length % 4;
+    if (pad) payload += '===='.slice(pad);
+    return JSON.parse(atob(payload)).role || null;
+  } catch(e) { return null; }
+}
+
+/* ============================================================
+   API HELPERS
+   ============================================================ */
+function authHeaders() {
+  return state.token ? { 'Authorization': 'Bearer ' + state.token } : {};
+}
+
+async function api(method, path, body) {
+  var opts = { method: method, headers: Object.assign({}, authHeaders()) };
+  if (body !== undefined) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  var res = await fetch(path, opts);
+  if (!res.ok) {
+    var msg = res.statusText;
+    try { var j = await res.json(); msg = (j.detail || JSON.stringify(j)); } catch(e) {}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+/* ============================================================
+   ROUTING
+   ============================================================ */
+var VIEWS = ['login', 'hotels', 'checkout', 'history', 'admin'];
+
+function navigate(viewId) {
+  // Redirect if trying to access login while logged in
+  if (viewId === 'login' && state.token) { viewId = 'hotels'; }
+  // Redirect if trying to access admin without admin role
+  if (viewId === 'admin' && state.role !== 'admin') { viewId = 'hotels'; }
+  VIEWS.forEach(function(v) {
+    var el = document.getElementById('view-' + v);
+    if (el) el.classList.toggle('active', v === viewId);
+  });
+  document.querySelectorAll('#nav a').forEach(function(a) {
+    a.classList.toggle('active', a.dataset.view === viewId);
+  });
+  if (history.pushState) history.pushState(null, '', '#' + viewId);
+
+  if (viewId === 'hotels' && document.getElementById('hotels-grid').children.length === 0) {
+    searchHotels(true);
+  }
+  if (viewId === 'history') loadHistory();
+  if (viewId === 'admin') {
+    loadAdminHotels();
+    loadAuditLogs();
+    // Pre-fill one room row if the form is empty
+    if (document.getElementById('ah-rooms-list').children.length === 0) {
+      addRoomRow('single', 10, 200);
+      addRoomRow('double', 5, 350);
+    }
+  }
+}
+
+window.addEventListener('popstate', function() {
+  var hash = location.hash.replace('#', '') || 'hotels';
+  navigate(VIEWS.indexOf(hash) >= 0 ? hash : 'hotels');
+});
+
+/* ============================================================
+   AUTH
+   ============================================================ */
+function updateAuthUI() {
+  var loggedIn = !!state.token;
+  var isAdmin  = state.role === 'admin';
+  document.getElementById('btn-logout').style.display    = loggedIn ? '' : 'none';
+  document.getElementById('btn-login-nav').style.display = loggedIn ? 'none' : '';
+  var badge = document.getElementById('user-badge');
+  badge.innerHTML = loggedIn ? ('Signed in as <strong>' + esc(state.username) + '</strong>' + (isAdmin ? ' <span style="font-size:0.75rem;background:#fde8d4;color:#b55618;border-radius:4px;padding:0.1rem 0.4rem;font-weight:700">admin</span>' : '')) : '';
+  document.querySelectorAll('[data-auth="required"]').forEach(function(el) {
+    el.style.display = loggedIn ? '' : 'none';
+  });
+  // Admin tab: only visible when logged in as admin
+  var adminLink = document.querySelector('#nav a[data-view="admin"]');
+  if (adminLink) adminLink.style.display = (loggedIn && isAdmin) ? '' : 'none';
+}
+
+async function doLogin() {
+  var username = document.getElementById('login-username').value.trim();
+  var password = document.getElementById('login-password').value;
+  var btn = document.getElementById('btn-login');
+  setAlert('login-alert', '', '');
+  btn.classList.add('loading');
+  try {
+    // POST /auth/login with JSON body
+    var data = await api('POST', '/auth/login', { username: username, password: password });
+    state.token    = data.access_token;
+    state.username = username;
+    state.role     = _parseJwtRole(data.access_token);
+    localStorage.setItem('ray_hotel_token', state.token);
+    localStorage.setItem('ray_hotel_user',  username);
+    localStorage.setItem('ray_hotel_role',  state.role || '');
+    updateAuthUI();
+    navigate('hotels');
+  } catch(err) {
+    setAlert('login-alert', 'err', err.message);
+  } finally {
+    btn.classList.remove('loading');
+  }
+}
+
+function logout() {
+  state.token    = null;
+  state.username = null;
+  state.role     = null;
+  localStorage.removeItem('ray_hotel_token');
+  localStorage.removeItem('ray_hotel_user');
+  localStorage.removeItem('ray_hotel_role');
+  updateAuthUI();
+  navigate('login');
+  updateAuthUI();
+  navigate('login');
+}
+
+/* ============================================================
+   HOTEL SEARCH  —  POST /hotels/search
+   ============================================================ */
+async function searchHotels(showAll) {
+  setAlert('hotels-alert', '', '');
+  var grid = document.getElementById('hotels-grid');
+  grid.innerHTML = '<div class="empty-state"><div class="empty-icon"><span class="spinner dark" style="width:32px;height:32px;display:inline-block"></span></div><p>Loading hotels\u2026</p></div>';
+
+  var body = {};
+  if (!showAll) {
+    var city     = document.getElementById('search-city').value.trim();
+    var roomType = document.getElementById('search-room-type').value.trim();
+    var maxPrice = parseFloat(document.getElementById('search-max-price').value);
+    if (city)                  body.city      = city;
+    if (roomType)              body.room_type  = roomType;
+    if (!isNaN(maxPrice) && maxPrice > 0) body.max_price = maxPrice;
+  }
+
+  try {
+    var hotels = await api('POST', '/hotels/search', body);
+    renderHotels(hotels);
+  } catch(err) {
+    setAlert('hotels-alert', 'err', err.message);
+    grid.innerHTML = '';
+  }
+}
+
+function renderHotels(hotels) {
+  state._hotelsCache = hotels;   // store for index-based lookup
+  var grid = document.getElementById('hotels-grid');
+  if (!hotels || hotels.length === 0) {
+    grid.innerHTML = '<div class="empty-state"><div class="empty-icon">🏨</div><p>No hotels found.</p></div>';
+    return;
+  }
+  grid.innerHTML = hotels.map(function(h, idx) {
+    // rooms is an object: {single: {available, price}, double: {available, price}}
+    var roomEntries = Object.entries(h.rooms || {});
+    var tags = roomEntries.map(function(e) {
+      return '<span class="room-tag">' + esc(e[0]) + ' <span style="font-weight:400;opacity:0.75">(' + e[1].available + ')</span></span>';
+    }).join('');
+    var minPrice = h.min_price || (roomEntries.length ? Math.min.apply(null, roomEntries.map(function(e){ return e[1].price; })) : '?');
+    return '<div class="hotel-card" onclick="openCheckout(' + idx + ')">'
+      + '<div class="hotel-name">' + esc(h.name) + '</div>'
+      + '<div class="hotel-city">\uD83D\uDCCD ' + esc(h.city) + '</div>'
+      + '<div class="rooms-summary">' + tags + '</div>'
+      + '<div class="hotel-price">from $' + minPrice + ' <span>/ night</span></div>'
+      + '</div>';
+  }).join('');
+}
+
+/* ============================================================
+   CHECKOUT
+   ============================================================ */
+function openCheckout(idx) {
+  if (!state.token) { navigate('login'); return; }
+  var hotel = state._hotelsCache[idx];
+  state.currentHotel      = hotel;
+  state.selectedRoomType  = null;
+  state.selectedRoomPrice = null;
+
+  document.getElementById('checkout-hotel-info').innerHTML =
+    '<h2>' + esc(hotel.name) + '</h2>'
+    + '<p style="color:var(--muted);margin-top:0.2rem">\uD83D\uDCCD ' + esc(hotel.city) + '</p>';
+
+  // Render room list (rooms is object)
+  var roomEntries = Object.entries(hotel.rooms || {});
+  state._roomKeys = roomEntries.map(function(e){ return e[0]; }); // store keys for index lookup
+  var list = document.getElementById('rooms-list');
+  list.innerHTML = roomEntries.map(function(e, i) {
+    var rType  = e[0];
+    var rData  = e[1];
+    var avail  = rData.available > 0 ? rData.available + ' available' : 'Sold out';
+    var sold   = rData.available <= 0;
+    return '<div class="room-row' + (sold ? ' disabled' : '') + '" id="room-row-' + i + '"'
+      + (sold ? '' : ' onclick="selectRoom(' + i + ')"')
+      + ' style="' + (sold ? 'opacity:0.45;cursor:not-allowed' : '') + '">'
+      + '<div><span class="room-tag">' + esc(rType) + '</span>'
+      + '<span style="font-size:0.82rem;color:var(--muted);margin-left:0.5rem">' + esc(avail) + '</span></div>'
+      + '<span class="room-price">$' + rData.price + '<span style="font-size:0.78rem;font-weight:400;color:var(--muted)">/night</span></span>'
+      + '</div>';
+  }).join('');
+
+  // Auto-select first available room
+  var firstAvail = roomEntries.findIndex(function(e){ return e[1].available > 0; });
+  if (firstAvail >= 0) selectRoom(firstAvail);
+
+  document.getElementById('co-nights').value = '1';
+  setAlert('checkout-alert', '', '');
+  updatePriceSummary();
+  navigate('checkout');
+}
+
+function selectRoom(idx) {
+  var rType = state._roomKeys[idx];
+  var rData = state.currentHotel.rooms[rType];
+  state.selectedRoomType  = rType;
+  state.selectedRoomPrice = rData.price;
+  document.querySelectorAll('.room-row').forEach(function(el, i) {
+    el.classList.toggle('selected', i === idx);
+  });
+  updatePriceSummary();
+}
+
+function updatePriceSummary() {
+  var h      = state.currentHotel;
+  var nights = parseInt(document.getElementById('co-nights').value, 10) || 0;
+  var price  = state.selectedRoomPrice;
+  var total  = (price && nights) ? (price * nights) : null;
+
+  document.getElementById('ps-hotel').textContent  = h ? h.name : '\u2014';
+  document.getElementById('ps-room').textContent   = state.selectedRoomType || '\u2014';
+  document.getElementById('ps-nights').textContent = nights || '\u2014';
+  document.getElementById('ps-pnight').textContent = price ? ('$' + price) : '\u2014';
+  document.getElementById('ps-total').textContent  = total !== null ? ('$' + total) : '\u2014';
+}
+
+async function doBook() {
+  if (!state.selectedRoomType) {
+    setAlert('checkout-alert', 'err', 'Please select a room.');
+    return;
+  }
+  var nights = parseInt(document.getElementById('co-nights').value, 10);
+  if (!nights || nights < 1) {
+    setAlert('checkout-alert', 'err', 'Enter a valid number of nights (minimum 1).');
+    return;
+  }
+  var payment = document.getElementById('co-payment').value;
+  var btn = document.getElementById('btn-book');
+  btn.classList.add('loading');
+  setAlert('checkout-alert', '', '');
+  try {
+    var result = await api('POST', '/reservations', {
+      hotel_id:       state.currentHotel.hotel_id,
+      room_type:      state.selectedRoomType,
+      nights:         nights,
+      user_id:        state.username,
+      payment_method: payment,
+    });
+    if (result.ok) {
+      setAlert('checkout-alert', 'ok', '\uD83C\uDF89 Booking confirmed! Reservation ID: ' + (result.reservation_id || '') + ' Total: $' + result.total_price);
+      setTimeout(function(){ navigate('history'); }, 2000);
+    } else {
+      setAlert('checkout-alert', 'err', result.message || 'Booking failed.');
+    }
+  } catch(err) {
+    setAlert('checkout-alert', 'err', err.message);
+  } finally {
+    btn.classList.remove('loading');
+  }
+}
+
+/* ============================================================
+   HISTORY  —  GET /users/{user_id}/reservations
+   ============================================================ */
+async function loadHistory() {
+  if (!state.token || !state.username) return;
+  setAlert('history-alert', '', '');
+  var btn = document.getElementById('btn-refresh-history');
+  btn.classList.add('loading');
+  try {
+    var data = await api('GET', '/users/' + encodeURIComponent(state.username) + '/reservations');
+    renderHistory(data.reservations || []);
+  } catch(err) {
+    setAlert('history-alert', 'err', err.message);
+  } finally {
+    btn.classList.remove('loading');
+  }
+}
+
+function renderHistory(reservations) {
+  var list = document.getElementById('history-list');
+  if (!reservations || reservations.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">\uD83D\uDCCB</div><p>No bookings yet.</p></div>';
+    return;
+  }
+  list.innerHTML = reservations.map(function(r) {
+    var status    = r.status || 'confirmed';
+    var canCancel = status === 'confirmed';
+    var resId     = r.reservation_id || r.id || '';
+    return '<div class="reservation-card">'
+      + '<div class="res-info">'
+      + '<div class="res-id">' + esc(resId) + '</div>'
+      + '<div class="res-hotel">' + esc(r.hotel_id || 'Hotel') + ' \u2014 ' + esc(r.room_type || '') + '</div>'
+      + '<div class="res-meta">' + r.nights + ' night(s)</div>'
+      + '</div>'
+      + '<div class="res-right">'
+      + '<div class="res-price">$' + (r.total_price !== undefined ? r.total_price : '\u2014') + '</div>'
+      + '<div><span class="badge ' + esc(status) + '">' + esc(status) + '</span></div>'
+      + (canCancel
+          ? '<div style="margin-top:0.4rem"><button class="btn-danger btn-sm" data-resid="' + esc(resId) + '" onclick="doCancel(this)"><span class="spinner"></span> Cancel</button></div>'
+          : '')
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+async function doCancel(el) {
+  var btn = el.closest ? el.closest('button') : el;
+  var reservationId = btn.dataset.resid;
+  if (!confirm('Cancel reservation ' + reservationId + '?')) return;
+  btn.classList.add('loading');
+  try {
+    await api('POST', '/reservations/cancel', {
+      reservation_id: reservationId,
+      user_id:        state.username,
+    });
+    await loadHistory();
+  } catch(err) {
+    setAlert('history-alert', 'err', err.message);
+    btn.classList.remove('loading');
+  }
+}
+
+/* ============================================================
+   ADMIN
+   ============================================================ */
+var _roomRowCount = 0;
+
+function addRoomRow(type, available, price) {
+  var i = _roomRowCount++;
+  var row = document.createElement('div');
+  row.id = 'room-row-form-' + i;
+  row.style.cssText = 'display:grid;grid-template-columns:1fr 80px 90px 32px;gap:0.4rem;align-items:center;margin-bottom:0.4rem';
+  row.innerHTML =
+    '<input type="text" placeholder="Type (e.g. single)" value="' + esc(type||'') + '" data-field="type" style="width:100%" />'
+    + '<input type="number" placeholder="Rooms" min="0" value="' + (available !== undefined ? available : '') + '" data-field="available" style="width:100%" />'
+    + '<input type="number" placeholder="$/night" min="1" step="0.01" value="' + (price !== undefined ? price : '') + '" data-field="price" style="width:100%" />'
+    + '<button type="button" class="btn-danger btn-sm" style="padding:0.3rem 0.5rem" onclick="removeRoomRow(' + i + ')">&#10005;</button>';
+  document.getElementById('ah-rooms-list').appendChild(row);
+}
+
+function removeRoomRow(i) {
+  var el = document.getElementById('room-row-form-' + i);
+  if (el) el.remove();
+}
+
+function getRoomsFromForm() {
+  var rows = document.querySelectorAll('#ah-rooms-list > div');
+  var rooms = {};
+  var err = null;
+  rows.forEach(function(row) {
+    var type      = row.querySelector('[data-field="type"]').value.trim();
+    var available = parseInt(row.querySelector('[data-field="available"]').value, 10);
+    var price     = parseFloat(row.querySelector('[data-field="price"]').value);
+    if (!type) { err = 'Each room type needs a name.'; return; }
+    if (isNaN(available) || available < 0) { err = 'Available rooms must be a number ≥ 0.'; return; }
+    if (isNaN(price) || price <= 0)        { err = 'Price per night must be > 0.'; return; }
+    rooms[type] = { available: available, price: price };
+  });
+  return err ? { error: err } : rooms;
+}
+
+async function doAddHotel() {
+  var hotelId = document.getElementById('ah-id').value.trim();
+  var name    = document.getElementById('ah-name').value.trim();
+  var city    = document.getElementById('ah-city').value.trim();
+  setAlert('add-hotel-alert', '', '');
+  if (!hotelId || !name || !city) {
+    setAlert('add-hotel-alert', 'err', 'Hotel ID, name and city are required.');
+    return;
+  }
+  var rooms = getRoomsFromForm();
+  if (rooms.error) {
+    setAlert('add-hotel-alert', 'err', rooms.error);
+    return;
+  }
+  if (Object.keys(rooms).length === 0) {
+    setAlert('add-hotel-alert', 'err', 'Add at least one room type.');
+    return;
+  }
+  var btn = document.getElementById('btn-add-hotel');
+  btn.classList.add('loading');
+  try {
+    await api('POST', '/admin/hotels', { hotel_id: hotelId, name: name, city: city, rooms: rooms });
+    setAlert('add-hotel-alert', 'ok', 'Hotel saved successfully.');
+    document.getElementById('ah-id').value   = '';
+    document.getElementById('ah-name').value = '';
+    document.getElementById('ah-city').value = '';
+    document.getElementById('ah-rooms-list').innerHTML = '';
+    _roomRowCount = 0;
+    loadAdminHotels();
+  } catch(err) {
+    setAlert('add-hotel-alert', 'err', err.message);
+  } finally {
+    btn.classList.remove('loading');
+  }
+}
+
+// Load all hotels via POST /hotels/search with empty body
+async function loadAdminHotels() {
+  setAlert('admin-hotels-alert', '', '');
+  var btn = document.getElementById('btn-load-admin-hotels');
+  btn.classList.add('loading');
+  try {
+    var hotels = await api('POST', '/hotels/search', {});
+    var tbody = document.getElementById('admin-hotels-body');
+    if (!hotels || hotels.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">No hotels.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = hotels.map(function(h) {
+      var roomSummary = Object.entries(h.rooms || {}).map(function(e){
+        return esc(e[0]) + '(' + e[1].available + ')';
+      }).join(', ');
+      return '<tr>'
+        + '<td class="mono">' + esc(h.hotel_id) + '</td>'
+        + '<td>' + esc(h.name) + '</td>'
+        + '<td>' + esc(h.city) + '</td>'
+        + '<td>' + (h.min_price !== null && h.min_price !== undefined ? '$' + h.min_price : '\u2014') + '</td>'
+        + '<td>' + roomSummary + '</td>'
+        + '</tr>';
+    }).join('');
+  } catch(err) {
+    setAlert('admin-hotels-alert', 'err', err.message);
+  } finally {
+    btn.classList.remove('loading');
+  }
+}
+
+async function loadAuditLogs() {
+  setAlert('audit-alert', '', '');
+  var btn = document.getElementById('btn-load-audit');
+  btn.classList.add('loading');
+  var eventType = document.getElementById('audit-type').value.trim();
+  var actorId   = document.getElementById('audit-actor').value.trim();
+  var params    = new URLSearchParams();
+  if (eventType) params.set('event_type', eventType);
+  if (actorId)   params.set('actor_id',   actorId);
+  try {
+    var data = await api('GET', '/admin/audit-logs?' + params.toString());
+    var logs = data.entries || [];
+    var tbody = document.getElementById('audit-body');
+    if (!logs.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted)">No log entries.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = logs.map(function(l) {
+      return '<tr>'
+        + '<td class="mono">' + fmtDateTime(l.occurred_at) + '</td>'
+        + '<td>' + esc(l.event_type) + '</td>'
+        + '<td class="mono">' + esc(l.actor_id || '') + '</td>'
+        + '<td class="mono">' + esc(l.entity_id || '') + '</td>'
+        + '</tr>';
+    }).join('');
+  } catch(err) {
+    setAlert('audit-alert', 'err', err.message);
+  } finally {
+    btn.classList.remove('loading');
+  }
+}
+
+/* ============================================================
+   UTILS
+   ============================================================ */
+function setAlert(id, type, msg) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.className = 'alert' + (type ? ' ' + type : '') + (msg ? ' visible' : '');
+  el.textContent = msg;
+}
+
+function esc(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function fmtDateTime(s) {
+  if (!s) return '\u2014';
+  try { return new Date(s).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' }); }
+  catch(e) { return s; }
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+(function init() {
+  updateAuthUI();
+  var hash   = location.hash.replace('#', '');
+  var target = (VIEWS.indexOf(hash) >= 0) ? hash : (state.token ? 'hotels' : 'login');
+  navigate(target);
+})();
+</script>
+</body>
+</html>

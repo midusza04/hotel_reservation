@@ -1,0 +1,12 @@
+FROM rayproject/ray:nightly-py311-cpu
+
+WORKDIR /app
+
+COPY app/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+COPY app /app
+
+# ---- worker node ----
+# Joins the Ray cluster via the head node address.
+CMD ["bash", "-lc", "ray start --address=ray-head:6379 --num-cpus=2 --block"]
