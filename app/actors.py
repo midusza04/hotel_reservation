@@ -1,3 +1,11 @@
+"""Ray actors implementing the distributed hotel reservation domain.
+
+The actors split responsibility between hotel inventory, booking orchestration,
+payments, user history, metrics, audit logging and administration.  Each actor
+owns its own state, which matches Ray's actor model and avoids shared memory
+between distributed components.
+"""
+
 from collections import defaultdict
 import logging
 import time
@@ -51,7 +59,10 @@ def _ray_call(ref, *, timeout: float = RAY_CALL_TIMEOUT_S, retries: int = MAX_RE
 
 @ray.remote(num_cpus=0.25)
 class HotelActor:
+    """Owns the state and concurrency boundary for a single hotel offer."""
+
     def __init__(self, hotel_id: str, name: str, city: str, rooms: Dict[str, dict]):
+        """Create a hotel actor with room availability and in-memory holds."""
         self.hotel_id = hotel_id
         self.name = name
         self.city = city
@@ -60,6 +71,7 @@ class HotelActor:
         self.reservations = {}
 
     def set_offer(self, name: str, city: str, rooms: Dict[str, dict]):
+        """Replace the public hotel offer and persist a fresh snapshot."""
         self.name = name
         self.city = city
         self.rooms = rooms
@@ -67,6 +79,7 @@ class HotelActor:
         return {"ok": True}
 
     def _cleanup_expired_holds(self):
+        """Release room holds whose TTL has elapsed."""
         now = time.time()
         expired_ids = [
             hold_id for hold_id, hold in self.holds.items() if hold["expires_at"] <= now
@@ -78,6 +91,7 @@ class HotelActor:
             self._persist_snapshot()
 
     def _snapshot_rooms(self) -> Dict[str, dict]:
+        """Return room availability as if temporary holds were not reserved."""
         holds_by_room = defaultdict(int)
         for hold in self.holds.values():
             holds_by_room[hold["room_type"]] += 1
@@ -89,6 +103,7 @@ class HotelActor:
         return snapshot
 
     def _persist_snapshot(self):
+        """Persist the current hotel state to the database snapshot table."""
         save_hotel_snapshot(
             hotel_id=self.hotel_id,
             name=self.name,
@@ -97,6 +112,7 @@ class HotelActor:
         )
 
     def get_snapshot(self) -> dict:
+        """Return a database-friendly snapshot of this hotel actor."""
         return {
             "hotel_id": self.hotel_id,
             "name": self.name,
@@ -105,6 +121,7 @@ class HotelActor:
         }
 
     def matches(self, city: Optional[str], max_price: Optional[float], room_type: Optional[str]):
+        """Check whether this hotel matches the provided search filters."""
         self._cleanup_expired_holds()
         if city and self.city.lower() != city.lower():
             return False
@@ -120,6 +137,7 @@ class HotelActor:
         return True
 
     def get_offer(self):
+        """Return the public hotel offer for API search results."""
         self._cleanup_expired_holds()
         active_prices = [room["price"] for room in self.rooms.values() if room["available"] > 0]
         return {
@@ -131,6 +149,7 @@ class HotelActor:
         }
 
     def try_hold(self, room_type: str, user_id: str, nights: int):
+        """Reserve one room temporarily before payment is processed."""
         self._cleanup_expired_holds()
         room = self.rooms.get(room_type)
         if not room:
@@ -159,6 +178,7 @@ class HotelActor:
         }
 
     def release_hold(self, hold_id: str):
+        """Release a temporary hold and restore room availability."""
         self._cleanup_expired_holds()
         hold = self.holds.pop(hold_id, None)
         if not hold:
@@ -167,6 +187,7 @@ class HotelActor:
         return {"ok": True}
 
     def confirm_hold(self, hold_id: str):
+        """Convert a valid hold into a confirmed hotel-local reservation."""
         self._cleanup_expired_holds()
         hold = self.holds.pop(hold_id, None)
         if not hold:
@@ -186,6 +207,7 @@ class HotelActor:
         return {"ok": True, **reservation}
 
     def cancel_reservation(self, reservation_id: str):
+        """Cancel a hotel-local reservation and return the room to inventory."""
         reservation = self.reservations.get(reservation_id)
         if not reservation:
             return {"ok": False, "message": "Nie znaleziono rezerwacji"}
@@ -200,7 +222,10 @@ class HotelActor:
 
 @ray.remote(num_cpus=0.5)
 class InventoryActor:
+    """Registry and facade for all hotel actors in the system."""
+
     def __init__(self):
+        """Restore hotel actors from database snapshots on startup."""
         self.hotels = {}
         for hotel in load_hotels():
             self.hotels[hotel["hotel_id"]] = HotelActor.options(
@@ -213,6 +238,7 @@ class InventoryActor:
             )
 
     def snapshot_all(self):
+        """Persist snapshots for all known hotel actors."""
         for hotel in self.hotels.values():
             snapshot = _ray_call(hotel.get_snapshot.remote())
             save_hotel_snapshot(
@@ -223,6 +249,7 @@ class InventoryActor:
             )
 
     def upsert_hotel(self, hotel_id: str, name: str, city: str, rooms: Dict[str, dict]):
+        """Create a new hotel actor or update an existing hotel offer."""
         if hotel_id in self.hotels:
             _ray_call(self.hotels[hotel_id].set_offer.remote(name=name, city=city, rooms=rooms))
             save_hotel_snapshot(hotel_id=hotel_id, name=name, city=city, rooms=rooms)
@@ -235,6 +262,7 @@ class InventoryActor:
         return {"ok": True, "message": "Hotel dodany", "hotel_id": hotel_id}
 
     def search_hotels(self, city: Optional[str], max_price: Optional[float], room_type: Optional[str]):
+        """Find hotel offers matching optional search filters."""
         matches = []
         for hotel in self.hotels.values():
             if _ray_call(hotel.matches.remote(city=city, max_price=max_price, room_type=room_type)):
@@ -242,24 +270,28 @@ class InventoryActor:
         return matches
 
     def hold_room(self, hotel_id: str, room_type: str, user_id: str, nights: int):
+        """Delegate temporary room reservation to the selected hotel actor."""
         hotel = self.hotels.get(hotel_id)
         if not hotel:
             return {"ok": False, "message": "Hotel nie istnieje"}
         return _ray_call(hotel.try_hold.remote(room_type=room_type, user_id=user_id, nights=nights))
 
     def release_hold(self, hotel_id: str, hold_id: str):
+        """Delegate hold release to the selected hotel actor."""
         hotel = self.hotels.get(hotel_id)
         if not hotel:
             return {"ok": False, "message": "Hotel nie istnieje"}
         return _ray_call(hotel.release_hold.remote(hold_id=hold_id))
 
     def confirm_hold(self, hotel_id: str, hold_id: str):
+        """Delegate hold confirmation to the selected hotel actor."""
         hotel = self.hotels.get(hotel_id)
         if not hotel:
             return {"ok": False, "message": "Hotel nie istnieje"}
         return _ray_call(hotel.confirm_hold.remote(hold_id=hold_id))
 
     def cancel_reservation(self, hotel_id: str, reservation_id: str):
+        """Delegate reservation cancellation to the selected hotel actor."""
         hotel = self.hotels.get(hotel_id)
         if not hotel:
             return {"ok": False, "message": "Hotel nie istnieje"}
@@ -268,7 +300,10 @@ class InventoryActor:
 
 @ray.remote(num_cpus=0.1)
 class PaymentActor:
+    """Payment gateway simulator used by the booking workflow."""
+
     def process_payment(self, user_id: str, amount: float, payment_method: str):
+        """Approve a payment unless the request uses an invalid method or amount."""
         if amount <= 0:
             return {"ok": False, "message": "Nieprawidlowa kwota"}
         if payment_method.lower() == "reject":
@@ -296,7 +331,10 @@ class PaymentActor:
 
 @ray.remote(num_cpus=0.25)
 class ReservationHistoryActor:
+    """Stores reservation history indexed by user and reservation id."""
+
     def __init__(self):
+        """Load persisted reservations into actor memory."""
         self.by_user = defaultdict(list)
         self.by_id = {}
         for reservation in load_reservations():
@@ -304,12 +342,14 @@ class ReservationHistoryActor:
             self.by_id[reservation["reservation_id"]] = reservation
 
     def add_reservation(self, reservation: dict):
+        """Add a confirmed reservation to memory and durable storage."""
         self.by_user[reservation["user_id"]].append(reservation)
         self.by_id[reservation["reservation_id"]] = reservation
         save_reservation(reservation)
         return {"ok": True}
 
     def cancel_reservation(self, reservation_id: str):
+        """Mark a reservation as cancelled in the in-memory history."""
         reservation = self.by_id.get(reservation_id)
         if not reservation:
             return {"ok": False, "message": "Rezerwacja nie istnieje"}
@@ -317,12 +357,16 @@ class ReservationHistoryActor:
         return {"ok": True}
 
     def list_user_reservations(self, user_id: str):
+        """Return all reservations known for a user."""
         return self.by_user.get(user_id, [])
 
 
 @ray.remote(num_cpus=0.5)
 class BookingCoordinatorActor:
+    """Orchestrates the reservation saga across inventory, payment and history."""
+
     def __init__(self, inventory, payment, history, audit_log, metrics):
+        """Wire dependent actors and restore persisted coordinator state."""
         self.inventory = inventory
         self.payment = payment
         self.history = history
@@ -334,6 +378,7 @@ class BookingCoordinatorActor:
             self.reservations[reservation["reservation_id"]] = reservation
 
     def _cache_idempotent(self, user_id: str, idempotency_key: Optional[str], response: dict):
+        """Cache a booking response under a user-scoped idempotency key."""
         if idempotency_key:
             self.idempotency[(user_id, idempotency_key)] = response
 
@@ -346,6 +391,7 @@ class BookingCoordinatorActor:
         payment_method: str,
         idempotency_key: Optional[str] = None,
     ):
+        """Run the end-to-end booking flow with rollback on payment failure."""
         if idempotency_key:
             cached = self.idempotency.get((user_id, idempotency_key))
             if cached:
@@ -494,6 +540,7 @@ class BookingCoordinatorActor:
         return response
 
     def cancel_booking(self, user_id: str, reservation_id: str):
+        """Cancel a reservation and calculate the refund policy result."""
         reservation = self.reservations.get(reservation_id)
         if not reservation:
             return {"ok": False, "message": "Nie znaleziono rezerwacji"}
@@ -552,6 +599,7 @@ class MetricsActor:
     """Single-instance actor that owns all Prometheus metrics state."""
 
     def __init__(self):
+        """Create an isolated Prometheus registry for application metrics."""
         self._registry = CollectorRegistry()
 
         self.reservations_total = Counter(
@@ -602,37 +650,48 @@ class MetricsActor:
         )
 
     def inc_reservation(self, status: str):
+        """Increment reservation attempts by status."""
         self.reservations_total.labels(status=status).inc()
 
     def inc_cancellation(self, status: str):
+        """Increment cancellation attempts by status."""
         self.cancellations_total.labels(status=status).inc()
 
     def inc_payment(self, status: str):
+        """Increment payment attempts by status."""
         self.payments_total.labels(status=status).inc()
 
     def set_active_holds(self, count: int):
+        """Set the gauge for currently active room holds."""
         self.active_holds.set(count)
 
     def observe_booking_duration(self, seconds: float):
+        """Record booking workflow duration in seconds."""
         self.booking_duration.observe(seconds)
 
     def observe_cancellation_duration(self, seconds: float):
+        """Record cancellation workflow duration in seconds."""
         self.cancellation_duration.observe(seconds)
 
     def inc_http_request(self, method: str, endpoint: str, status_code: int):
+        """Increment HTTP request count by method, path and status code."""
         self.http_requests_total.labels(
             method=method, endpoint=endpoint, status_code=str(status_code)
         ).inc()
 
     def inc_ray_retry(self):
+        """Increment the counter for retried Ray calls."""
         self.ray_call_retries_total.inc()
 
     def get_metrics(self) -> bytes:
+        """Serialize all metrics in Prometheus exposition format."""
         return generate_latest(self._registry)
 
 
 @ray.remote(num_cpus=0.1)
 class AuditLogActor:
+    """Writes and queries durable audit events for domain operations."""
+
     def log(
         self,
         event_type: str,
@@ -640,6 +699,7 @@ class AuditLogActor:
         entity_id: Optional[str] = None,
         details: Optional[dict] = None,
     ):
+        """Persist a single audit event with optional actor and entity context."""
         entry = {
             "event_id": str(uuid4()),
             "event_type": event_type,
@@ -658,6 +718,7 @@ class AuditLogActor:
         entity_id: Optional[str] = None,
         limit: int = 100,
     ):
+        """Load recent audit log entries using optional filters."""
         return load_audit_logs(
             event_type=event_type,
             actor_id=actor_id,
@@ -668,11 +729,15 @@ class AuditLogActor:
 
 @ray.remote(num_cpus=0.1)
 class AdminActor:
+    """Administrative facade for changing hotel offers."""
+
     def __init__(self, inventory, audit_log):
+        """Store dependencies required for administrative operations."""
         self.inventory = inventory
         self.audit_log = audit_log
 
     def upsert_hotel(self, hotel_id: str, name: str, city: str, rooms: Dict[str, dict]):
+        """Create or update a hotel and emit an audit event."""
         result = _ray_call(
             self.inventory.upsert_hotel.remote(
                 hotel_id=hotel_id,

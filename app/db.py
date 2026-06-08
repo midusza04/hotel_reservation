@@ -1,3 +1,9 @@
+"""Database models and persistence helpers for the reservation system.
+
+The actors keep operational state in memory, while this module provides durable
+snapshots and append-only audit data in Postgres through SQLAlchemy.
+"""
+
 import os
 from datetime import datetime, timezone
 from typing import Optional
@@ -16,6 +22,8 @@ Base = declarative_base()
 
 
 class Hotel(Base):
+    """Persisted hotel inventory snapshot."""
+
     __tablename__ = "hotels"
 
     hotel_id = Column(String, primary_key=True)
@@ -26,6 +34,8 @@ class Hotel(Base):
 
 
 class Reservation(Base):
+    """Persisted reservation record used for restore and history."""
+
     __tablename__ = "reservations"
 
     reservation_id = Column(String, primary_key=True)
@@ -42,6 +52,8 @@ class Reservation(Base):
 
 
 class AuditLog(Base):
+    """Durable audit event produced by domain operations."""
+
     __tablename__ = "audit_logs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -54,10 +66,12 @@ class AuditLog(Base):
 
 
 def init_db():
+    """Create database tables required by the application."""
     Base.metadata.create_all(bind=engine)
 
 
 def save_hotel_snapshot(hotel_id: str, name: str, city: str, rooms: dict):
+    """Insert or update the latest durable snapshot for a hotel."""
     now = datetime.now(timezone.utc)
     with SessionLocal() as session:
         hotel = session.get(Hotel, hotel_id)
@@ -80,6 +94,7 @@ def save_hotel_snapshot(hotel_id: str, name: str, city: str, rooms: dict):
 
 
 def load_hotels() -> list[dict]:
+    """Load all persisted hotel snapshots as dictionaries."""
     with SessionLocal() as session:
         hotels = session.query(Hotel).all()
         return [
@@ -94,6 +109,7 @@ def load_hotels() -> list[dict]:
 
 
 def save_reservation(reservation: dict):
+    """Insert a new reservation or update mutable cancellation fields."""
     created_at = datetime.fromtimestamp(reservation["created_at"], tz=timezone.utc)
     with SessionLocal() as session:
         db_res = session.get(Reservation, reservation["reservation_id"])
@@ -121,6 +137,7 @@ def save_reservation(reservation: dict):
 
 
 def update_reservation_status(reservation_id: str, status: str, refund_percent: int, refund_amount: float):
+    """Update reservation status and refund information after cancellation."""
     with SessionLocal() as session:
         db_res = session.get(Reservation, reservation_id)
         if not db_res:
@@ -132,18 +149,21 @@ def update_reservation_status(reservation_id: str, status: str, refund_percent: 
 
 
 def load_reservations() -> list[dict]:
+    """Load all persisted reservations for actor state restoration."""
     with SessionLocal() as session:
         reservations = session.query(Reservation).all()
         return [_reservation_to_dict(item) for item in reservations]
 
 
 def load_reservations_by_user(user_id: str) -> list[dict]:
+    """Load persisted reservations belonging to one user."""
     with SessionLocal() as session:
         reservations = session.query(Reservation).filter_by(user_id=user_id).all()
         return [_reservation_to_dict(item) for item in reservations]
 
 
 def _reservation_to_dict(item: Reservation) -> dict:
+    """Convert a SQLAlchemy reservation row into actor-friendly data."""
     return {
         "reservation_id": item.reservation_id,
         "user_id": item.user_id,
@@ -160,6 +180,7 @@ def _reservation_to_dict(item: Reservation) -> dict:
 
 
 def write_audit_log(entry: dict):
+    """Persist a single audit log entry."""
     occurred_at = datetime.fromtimestamp(entry["occurred_at"], tz=timezone.utc)
     with SessionLocal() as session:
         session.add(
@@ -181,6 +202,7 @@ def load_audit_logs(
     entity_id: Optional[str] = None,
     limit: int = 100,
 ) -> list[dict]:
+    """Load audit entries ordered from newest to oldest."""
     with SessionLocal() as session:
         q = session.query(AuditLog)
         if event_type:

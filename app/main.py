@@ -1,3 +1,11 @@
+"""FastAPI entrypoint for the Ray-based hotel reservation system.
+
+The module owns HTTP routing, demo authentication, application lifecycle
+initialization and the bridge between synchronous API handlers and Ray actors.
+Ray actors keep domain state and execute distributed reservation workflows,
+while FastAPI exposes a small JSON API consumed by the demo frontend.
+"""
+
 import asyncio
 from contextlib import asynccontextmanager, suppress
 from datetime import datetime, timedelta, timezone
@@ -47,6 +55,7 @@ _http_bearer = HTTPBearer()
 
 
 def _init_ray():
+    """Initialize Ray by joining a cluster when possible or starting local Ray."""
     if ray.is_initialized():
         return
     try:
@@ -56,6 +65,7 @@ def _init_ray():
 
 
 def _get_or_create_named_actor(actor_cls, actor_name: str, *args, spread: bool = False):
+    """Return a detached named actor, creating it when it does not exist yet."""
     namespace = "ray_hotel"
     try:
         return ray.get_actor(actor_name, namespace=namespace)
@@ -67,6 +77,7 @@ def _get_or_create_named_actor(actor_cls, actor_name: str, *args, spread: bool =
 
 
 def _seed_data(admin_actor):
+    """Seed demo hotels through the admin actor for a useful local startup."""
     initial_hotels = [
         {
             "hotel_id": "h-waw-1",
@@ -101,6 +112,7 @@ def _seed_data(admin_actor):
 
 
 def _create_access_token(username: str, role: str) -> str:
+    """Create a short-lived JWT carrying the username and role."""
     payload = {
         "sub": username,
         "role": role,
@@ -110,6 +122,7 @@ def _create_access_token(username: str, role: str) -> str:
 
 
 def _get_current_user(credentials: HTTPAuthorizationCredentials = Depends(_http_bearer)) -> dict:
+    """Decode the bearer token and return the authenticated user context."""
     token = credentials.credentials
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
@@ -125,7 +138,9 @@ def _get_current_user(credentials: HTTPAuthorizationCredentials = Depends(_http_
 
 
 def _require_role(required_role: str):
+    """Build a FastAPI dependency that allows only the requested role."""
     def _guard(user: dict = Depends(_get_current_user)) -> dict:
+        """Validate a decoded user against the required role."""
         if user["role"] != required_role:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Brak uprawnien")
         return user
@@ -134,6 +149,7 @@ def _require_role(required_role: str):
 
 
 async def _snapshot_loop(app: FastAPI):
+    """Periodically persist hotel inventory snapshots from Ray actors."""
     while True:
         try:
             ray.get(app.state.inventory.snapshot_all.remote(), timeout=RAY_CALL_TIMEOUT_S)
@@ -144,6 +160,7 @@ async def _snapshot_loop(app: FastAPI):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Create infrastructure resources and Ray actors for the API lifespan."""
     init_db()
     _init_ray()
 
@@ -190,6 +207,7 @@ app.add_middleware(
 
 @app.middleware("http")
 async def _track_http_metrics(request: Request, call_next):
+    """Record every HTTP response in the Prometheus metrics actor."""
     response = await call_next(request)
     try:
         app.state.metrics.inc_http_request.remote(
@@ -204,6 +222,7 @@ async def _track_http_metrics(request: Request, call_next):
 
 @app.get("/health")
 def health_check():
+    """Return process and Ray cluster health information for probes."""
     cluster_info = {}
     try:
         nodes = ray.nodes()
@@ -213,11 +232,18 @@ def health_check():
         }
     except Exception:
         pass
-    return {"status": "ok", "ray_initialized": ray.is_initialized(), "cluster": cluster_info}
+    return {
+        "status": "ok",
+        "ray_initialized": ray.is_initialized(),
+        "cluster": cluster_info,
+        "total_nodes": cluster_info.get("total_nodes", 0),
+        "alive_nodes": cluster_info.get("alive_nodes", 0),
+    }
 
 
 @app.get("/metrics")
 def metrics_endpoint():
+    """Expose application metrics in Prometheus text format."""
     try:
         data = ray.get(app.state.metrics.get_metrics.remote(), timeout=RAY_CALL_TIMEOUT_S)
     except Exception:
@@ -227,6 +253,7 @@ def metrics_endpoint():
 
 @app.post("/auth/login", response_model=LoginResponse)
 def login(payload: LoginRequest):
+    """Authenticate a demo user and return a bearer token."""
     user = _FAKE_USERS.get(payload.username)
     if not user or user["password"] != payload.password:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bledne dane logowania")
@@ -242,6 +269,7 @@ def login(payload: LoginRequest):
 
 @app.post("/hotels/search")
 def search_hotels(payload: SearchRequest):
+    """Search hotels using optional city, price and room type filters."""
     try:
         return ray.get(
             app.state.inventory.search_hotels.remote(
@@ -257,6 +285,7 @@ def search_hotels(payload: SearchRequest):
 
 @app.post("/reservations", response_model=ReservationResponse)
 def create_reservation(payload: ReservationCreateRequest, user: dict = Depends(_get_current_user)):
+    """Create a reservation through the booking coordinator actor."""
     if payload.user_id != user["username"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Brak uprawnien")
     try:
@@ -278,6 +307,7 @@ def create_reservation(payload: ReservationCreateRequest, user: dict = Depends(_
 
 @app.post("/reservations/cancel", response_model=ReservationResponse)
 def cancel_reservation(payload: ReservationCancelRequest, user: dict = Depends(_get_current_user)):
+    """Cancel a confirmed reservation owned by the authenticated user."""
     if payload.user_id != user["username"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Brak uprawnien")
     try:
@@ -295,6 +325,7 @@ def cancel_reservation(payload: ReservationCancelRequest, user: dict = Depends(_
 
 @app.get("/users/{user_id}/reservations", response_model=UserReservationsResponse)
 def user_reservations(user_id: str, user: dict = Depends(_get_current_user)):
+    """Return the authenticated user's reservation history."""
     if user_id != user["username"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Brak uprawnien")
     try:
@@ -306,6 +337,7 @@ def user_reservations(user_id: str, user: dict = Depends(_get_current_user)):
 
 @app.post("/admin/hotels")
 def upsert_hotel(payload: HotelUpsertRequest, user: dict = Depends(_require_role("admin"))):
+    """Create or update a hotel offer; available only to administrators."""
     rooms = {key: value.model_dump() for key, value in payload.rooms.items()}
     try:
         return ray.get(
@@ -329,6 +361,7 @@ def get_audit_logs(
     limit: int = 100,
     user: dict = Depends(_require_role("admin")),
 ):
+    """List audit log entries with optional filters for administrators."""
     try:
         entries = ray.get(
             app.state.audit_log.list_logs.remote(

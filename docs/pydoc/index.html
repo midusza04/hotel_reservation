@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang='pl'>
+<head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<title>Ray Hotel - pydoc</title>
+<style>
+:root{--bg:#f8fafc;--panel:#fff;--ink:#172033;--muted:#64748b;--line:#dbe3ef;--brand:#2563eb;--soft:#eff6ff}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font-family:Segoe UI,Arial,sans-serif;line-height:1.55}
+header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:1rem 1.5rem}
+h1{margin:0;font-size:1.55rem}header p{margin:.25rem 0 1rem;color:var(--muted)}
+.tabs{display:flex;gap:.5rem;flex-wrap:wrap}.tab{border:1px solid var(--line);background:#fff;color:var(--ink);padding:.55rem .9rem;border-radius:999px;cursor:pointer;font-weight:650}
+.tab.active,.tab:hover{background:var(--brand);border-color:var(--brand);color:#fff}
+.layout{display:grid;grid-template-columns:280px minmax(0,1fr);gap:1.25rem;max-width:1280px;margin:0 auto;padding:1.25rem}
+aside{position:sticky;top:118px;align-self:start;max-height:calc(100vh - 140px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:1rem}
+.module-nav{display:none}.module-nav.active{display:grid;gap:.25rem}.module-nav strong{font-size:1.05rem;margin-bottom:.45rem}.module-nav span{margin-top:.7rem;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:800}
+.module-nav a{display:block;text-decoration:none;color:var(--ink);padding:.35rem .45rem;border-radius:8px}.module-nav a:hover{background:var(--soft);color:var(--brand)}.method-link{padding-left:1.25rem!important;color:var(--muted)!important}
+main{min-width:0}.module-panel{display:none}.module-panel.active{display:block}.module-hero{background:linear-gradient(135deg,#eff6ff,#fff);border:1px solid var(--line);border-radius:18px;padding:1.2rem;margin-bottom:1rem}
+.eyebrow{margin:0;color:var(--brand);font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;font-weight:800}.module-hero h2{margin:.1rem 0 .5rem;font-size:2rem}.module-hero p{color:var(--muted)}
+h3{margin:1.4rem 0 .75rem}.doc-card{scroll-margin-top:132px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:1rem 1.1rem;margin:.9rem 0;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.doc-card:target,.method:target{outline:2px solid var(--brand);background:#f8fbff}.kind{display:inline-block;color:var(--brand);background:var(--soft);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;font-weight:800;border-radius:999px;padding:.18rem .5rem}
+h4{margin:.5rem 0;font-size:1.25rem}h5{margin:.9rem 0 .35rem;font-size:1rem}pre{overflow:auto;background:#0f172a;color:#e2e8f0;border-radius:12px;padding:.8rem}code{font-family:Cascadia Code,Consolas,monospace;font-size:.9rem}
+.methods{border-top:1px solid var(--line);margin-top:1rem;padding-top:.25rem}.method{scroll-margin-top:132px;border-left:3px solid var(--line);padding-left:.8rem;margin:.7rem 0}
+@media(max-width:850px){.layout{grid-template-columns:1fr}aside{position:static;max-height:none}header{position:static}.doc-card,.method{scroll-margin-top:16px}}
+</style>
+</head>
+<body>
+<header>
+<h1>Ray Hotel - dokumentacja pydoc</h1>
+<p>Jedna strona z zakladkami modulow oraz przewijaniem do funkcji, klas i metod.</p>
+<div class='tabs'><button class='tab active' type='button' data-module='actors'>actors</button><button class='tab' type='button' data-module='db'>db</button><button class='tab' type='button' data-module='main'>main</button><button class='tab' type='button' data-module='models'>models</button></div>
+</header>
+<div class='layout'>
+<aside><nav class='module-nav active' data-module='actors'><strong>actors</strong>
+<span>Funkcje</span>
+<a href='#actors--ray-call' data-module='actors'>_ray_call</a>
+<span>Klasy i metody</span>
+<a href='#actors-hotelactor' data-module='actors'>HotelActor</a>
+<a class='method-link' href='#actors-hotelactor---init--' data-module='actors'>__init__</a>
+<a class='method-link' href='#actors-hotelactor-set-offer' data-module='actors'>set_offer</a>
+<a class='method-link' href='#actors-hotelactor--cleanup-expired-holds' data-module='actors'>_cleanup_expired_holds</a>
+<a class='method-link' href='#actors-hotelactor--snapshot-rooms' data-module='actors'>_snapshot_rooms</a>
+<a class='method-link' href='#actors-hotelactor--persist-snapshot' data-module='actors'>_persist_snapshot</a>
+<a class='method-link' href='#actors-hotelactor-get-snapshot' data-module='actors'>get_snapshot</a>
+<a class='method-link' href='#actors-hotelactor-matches' data-module='actors'>matches</a>
+<a class='method-link' href='#actors-hotelactor-get-offer' data-module='actors'>get_offer</a>
+<a class='method-link' href='#actors-hotelactor-try-hold' data-module='actors'>try_hold</a>
+<a class='method-link' href='#actors-hotelactor-release-hold' data-module='actors'>release_hold</a>
+<a class='method-link' href='#actors-hotelactor-confirm-hold' data-module='actors'>confirm_hold</a>
+<a class='method-link' href='#actors-hotelactor-cancel-reservation' data-module='actors'>cancel_reservation</a>
+<a href='#actors-inventoryactor' data-module='actors'>InventoryActor</a>
+<a class='method-link' href='#actors-inventoryactor---init--' data-module='actors'>__init__</a>
+<a class='method-link' href='#actors-inventoryactor-snapshot-all' data-module='actors'>snapshot_all</a>
+<a class='method-link' href='#actors-inventoryactor-upsert-hotel' data-module='actors'>upsert_hotel</a>
+<a class='method-link' href='#actors-inventoryactor-search-hotels' data-module='actors'>search_hotels</a>
+<a class='method-link' href='#actors-inventoryactor-hold-room' data-module='actors'>hold_room</a>
+<a class='method-link' href='#actors-inventoryactor-release-hold' data-module='actors'>release_hold</a>
+<a class='method-link' href='#actors-inventoryactor-confirm-hold' data-module='actors'>confirm_hold</a>
+<a class='method-link' href='#actors-inventoryactor-cancel-reservation' data-module='actors'>cancel_reservation</a>
+<a href='#actors-paymentactor' data-module='actors'>PaymentActor</a>
+<a class='method-link' href='#actors-paymentactor-process-payment' data-module='actors'>process_payment</a>
+<a class='method-link' href='#actors-paymentactor-refund-payment' data-module='actors'>refund_payment</a>
+<a href='#actors-reservationhistoryactor' data-module='actors'>ReservationHistoryActor</a>
+<a class='method-link' href='#actors-reservationhistoryactor---init--' data-module='actors'>__init__</a>
+<a class='method-link' href='#actors-reservationhistoryactor-add-reservation' data-module='actors'>add_reservation</a>
+<a class='method-link' href='#actors-reservationhistoryactor-cancel-reservation' data-module='actors'>cancel_reservation</a>
+<a class='method-link' href='#actors-reservationhistoryactor-list-user-reservations' data-module='actors'>list_user_reservations</a>
+<a href='#actors-bookingcoordinatoractor' data-module='actors'>BookingCoordinatorActor</a>
+<a class='method-link' href='#actors-bookingcoordinatoractor---init--' data-module='actors'>__init__</a>
+<a class='method-link' href='#actors-bookingcoordinatoractor--cache-idempotent' data-module='actors'>_cache_idempotent</a>
+<a class='method-link' href='#actors-bookingcoordinatoractor-book-room' data-module='actors'>book_room</a>
+<a class='method-link' href='#actors-bookingcoordinatoractor-cancel-booking' data-module='actors'>cancel_booking</a>
+<a href='#actors-metricsactor' data-module='actors'>MetricsActor</a>
+<a class='method-link' href='#actors-metricsactor---init--' data-module='actors'>__init__</a>
+<a class='method-link' href='#actors-metricsactor-inc-reservation' data-module='actors'>inc_reservation</a>
+<a class='method-link' href='#actors-metricsactor-inc-cancellation' data-module='actors'>inc_cancellation</a>
+<a class='method-link' href='#actors-metricsactor-inc-payment' data-module='actors'>inc_payment</a>
+<a class='method-link' href='#actors-metricsactor-set-active-holds' data-module='actors'>set_active_holds</a>
+<a class='method-link' href='#actors-metricsactor-observe-booking-duration' data-module='actors'>observe_booking_duration</a>
+<a class='method-link' href='#actors-metricsactor-observe-cancellation-duration' data-module='actors'>observe_cancellation_duration</a>
+<a class='method-link' href='#actors-metricsactor-inc-http-request' data-module='actors'>inc_http_request</a>
+<a class='method-link' href='#actors-metricsactor-inc-ray-retry' data-module='actors'>inc_ray_retry</a>
+<a class='method-link' href='#actors-metricsactor-get-metrics' data-module='actors'>get_metrics</a>
+<a href='#actors-auditlogactor' data-module='actors'>AuditLogActor</a>
+<a class='method-link' href='#actors-auditlogactor-log' data-module='actors'>log</a>
+<a class='method-link' href='#actors-auditlogactor-list-logs' data-module='actors'>list_logs</a>
+<a href='#actors-adminactor' data-module='actors'>AdminActor</a>
+<a class='method-link' href='#actors-adminactor---init--' data-module='actors'>__init__</a>
+<a class='method-link' href='#actors-adminactor-upsert-hotel' data-module='actors'>upsert_hotel</a></nav><nav class='module-nav' data-module='db'><strong>db</strong>
+<span>Funkcje</span>
+<a href='#db-init-db' data-module='db'>init_db</a>
+<a href='#db-save-hotel-snapshot' data-module='db'>save_hotel_snapshot</a>
+<a href='#db-load-hotels' data-module='db'>load_hotels</a>
+<a href='#db-save-reservation' data-module='db'>save_reservation</a>
+<a href='#db-update-reservation-status' data-module='db'>update_reservation_status</a>
+<a href='#db-load-reservations' data-module='db'>load_reservations</a>
+<a href='#db-load-reservations-by-user' data-module='db'>load_reservations_by_user</a>
+<a href='#db--reservation-to-dict' data-module='db'>_reservation_to_dict</a>
+<a href='#db-write-audit-log' data-module='db'>write_audit_log</a>
+<a href='#db-load-audit-logs' data-module='db'>load_audit_logs</a>
+<span>Klasy i metody</span>
+<a href='#db-hotel' data-module='db'>Hotel</a>
+<a href='#db-reservation' data-module='db'>Reservation</a>
+<a href='#db-auditlog' data-module='db'>AuditLog</a></nav><nav class='module-nav' data-module='main'><strong>main</strong>
+<span>Funkcje</span>
+<a href='#main--init-ray' data-module='main'>_init_ray</a>
+<a href='#main--get-or-create-named-actor' data-module='main'>_get_or_create_named_actor</a>
+<a href='#main--seed-data' data-module='main'>_seed_data</a>
+<a href='#main--create-access-token' data-module='main'>_create_access_token</a>
+<a href='#main--get-current-user' data-module='main'>_get_current_user</a>
+<a href='#main--require-role' data-module='main'>_require_role</a>
+<a href='#main--snapshot-loop' data-module='main'>_snapshot_loop</a>
+<a href='#main-lifespan' data-module='main'>lifespan</a>
+<a href='#main--track-http-metrics' data-module='main'>_track_http_metrics</a>
+<a href='#main-health-check' data-module='main'>health_check</a>
+<a href='#main-metrics-endpoint' data-module='main'>metrics_endpoint</a>
+<a href='#main-login' data-module='main'>login</a>
+<a href='#main-search-hotels' data-module='main'>search_hotels</a>
+<a href='#main-create-reservation' data-module='main'>create_reservation</a>
+<a href='#main-cancel-reservation' data-module='main'>cancel_reservation</a>
+<a href='#main-user-reservations' data-module='main'>user_reservations</a>
+<a href='#main-upsert-hotel' data-module='main'>upsert_hotel</a>
+<a href='#main-get-audit-logs' data-module='main'>get_audit_logs</a></nav><nav class='module-nav' data-module='models'><strong>models</strong>
+<span>Klasy i metody</span>
+<a href='#models-loginrequest' data-module='models'>LoginRequest</a>
+<a href='#models-loginresponse' data-module='models'>LoginResponse</a>
+<a href='#models-searchrequest' data-module='models'>SearchRequest</a>
+<a href='#models-roomconfig' data-module='models'>RoomConfig</a>
+<a href='#models-hotelupsertrequest' data-module='models'>HotelUpsertRequest</a>
+<a href='#models-reservationcreaterequest' data-module='models'>ReservationCreateRequest</a>
+<a href='#models-reservationcancelrequest' data-module='models'>ReservationCancelRequest</a>
+<a href='#models-reservationresponse' data-module='models'>ReservationResponse</a>
+<a href='#models-userreservationsresponse' data-module='models'>UserReservationsResponse</a>
+<a href='#models-auditlogentry' data-module='models'>AuditLogEntry</a>
+<a href='#models-auditlogsresponse' data-module='models'>AuditLogsResponse</a></nav></aside>
+<main><section class='module-panel active' id='module-actors'>
+<div class='module-hero'><p class='eyebrow'>Modul</p><h2>actors</h2>
+<p>Ray actors implementing the distributed hotel reservation domain.<br><br>The actors split responsibility between hotel inventory, booking orchestration,<br>payments, user history, metrics, audit logging and administration.  Each actor<br>owns its own state, which matches Ray&#x27;s actor model and avoids shared memory<br>between distributed components.</p></div>
+<h3>Funkcje modulu</h3>
+<article class='doc-card' id='actors--ray-call'>
+<div class='kind'>funkcja</div>
+<h4>_ray_call</h4>
+<pre><code>_ray_call(ref, timeout: float = RAY_CALL_TIMEOUT_S, retries: int = MAX_RETRIES)</code></pre>
+<p>Execute ray.get with timeout and exponential-backoff retry on transient errors.</p>
+</article>
+<h3>Klasy</h3>
+<article class='doc-card class-card' id='actors-hotelactor'>
+<div class='kind'>klasa</div>
+<h4>HotelActor</h4>
+<p>Owns the state and concurrency boundary for a single hotel offer.</p>
+<div class='methods'>
+<section class='method' id='actors-hotelactor---init--'>
+<h5>__init__</h5>
+<pre><code>__init__(self, hotel_id: str, name: str, city: str, rooms: Dict[str, dict])</code></pre>
+<p>Create a hotel actor with room availability and in-memory holds.</p>
+</section>
+<section class='method' id='actors-hotelactor-set-offer'>
+<h5>set_offer</h5>
+<pre><code>set_offer(self, name: str, city: str, rooms: Dict[str, dict])</code></pre>
+<p>Replace the public hotel offer and persist a fresh snapshot.</p>
+</section>
+<section class='method' id='actors-hotelactor--cleanup-expired-holds'>
+<h5>_cleanup_expired_holds</h5>
+<pre><code>_cleanup_expired_holds(self)</code></pre>
+<p>Release room holds whose TTL has elapsed.</p>
+</section>
+<section class='method' id='actors-hotelactor--snapshot-rooms'>
+<h5>_snapshot_rooms</h5>
+<pre><code>_snapshot_rooms(self) -&gt; Dict[str, dict]</code></pre>
+<p>Return room availability as if temporary holds were not reserved.</p>
+</section>
+<section class='method' id='actors-hotelactor--persist-snapshot'>
+<h5>_persist_snapshot</h5>
+<pre><code>_persist_snapshot(self)</code></pre>
+<p>Persist the current hotel state to the database snapshot table.</p>
+</section>
+<section class='method' id='actors-hotelactor-get-snapshot'>
+<h5>get_snapshot</h5>
+<pre><code>get_snapshot(self) -&gt; dict</code></pre>
+<p>Return a database-friendly snapshot of this hotel actor.</p>
+</section>
+<section class='method' id='actors-hotelactor-matches'>
+<h5>matches</h5>
+<pre><code>matches(self, city: Optional[str], max_price: Optional[float], room_type: Optional[str])</code></pre>
+<p>Check whether this hotel matches the provided search filters.</p>
+</section>
+<section class='method' id='actors-hotelactor-get-offer'>
+<h5>get_offer</h5>
+<pre><code>get_offer(self)</code></pre>
+<p>Return the public hotel offer for API search results.</p>
+</section>
+<section class='method' id='actors-hotelactor-try-hold'>
+<h5>try_hold</h5>
+<pre><code>try_hold(self, room_type: str, user_id: str, nights: int)</code></pre>
+<p>Reserve one room temporarily before payment is processed.</p>
+</section>
+<section class='method' id='actors-hotelactor-release-hold'>
+<h5>release_hold</h5>
+<pre><code>release_hold(self, hold_id: str)</code></pre>
+<p>Release a temporary hold and restore room availability.</p>
+</section>
+<section class='method' id='actors-hotelactor-confirm-hold'>
+<h5>confirm_hold</h5>
+<pre><code>confirm_hold(self, hold_id: str)</code></pre>
+<p>Convert a valid hold into a confirmed hotel-local reservation.</p>
+</section>
+<section class='method' id='actors-hotelactor-cancel-reservation'>
+<h5>cancel_reservation</h5>
+<pre><code>cancel_reservation(self, reservation_id: str)</code></pre>
+<p>Cancel a hotel-local reservation and return the room to inventory.</p>
+</section>
+</div>
+</article>
+<article class='doc-card class-card' id='actors-inventoryactor'>
+<div class='kind'>klasa</div>
+<h4>InventoryActor</h4>
+<p>Registry and facade for all hotel actors in the system.</p>
+<div class='methods'>
+<section class='method' id='actors-inventoryactor---init--'>
+<h5>__init__</h5>
+<pre><code>__init__(self)</code></pre>
+<p>Restore hotel actors from database snapshots on startup.</p>
+</section>
+<section class='method' id='actors-inventoryactor-snapshot-all'>
+<h5>snapshot_all</h5>
+<pre><code>snapshot_all(self)</code></pre>
+<p>Persist snapshots for all known hotel actors.</p>
+</section>
+<section class='method' id='actors-inventoryactor-upsert-hotel'>
+<h5>upsert_hotel</h5>
+<pre><code>upsert_hotel(self, hotel_id: str, name: str, city: str, rooms: Dict[str, dict])</code></pre>
+<p>Create a new hotel actor or update an existing hotel offer.</p>
+</section>
+<section class='method' id='actors-inventoryactor-search-hotels'>
+<h5>search_hotels</h5>
+<pre><code>search_hotels(self, city: Optional[str], max_price: Optional[float], room_type: Optional[str])</code></pre>
+<p>Find hotel offers matching optional search filters.</p>
+</section>
+<section class='method' id='actors-inventoryactor-hold-room'>
+<h5>hold_room</h5>
+<pre><code>hold_room(self, hotel_id: str, room_type: str, user_id: str, nights: int)</code></pre>
+<p>Delegate temporary room reservation to the selected hotel actor.</p>
+</section>
+<section class='method' id='actors-inventoryactor-release-hold'>
+<h5>release_hold</h5>
+<pre><code>release_hold(self, hotel_id: str, hold_id: str)</code></pre>
+<p>Delegate hold release to the selected hotel actor.</p>
+</section>
+<section class='method' id='actors-inventoryactor-confirm-hold'>
+<h5>confirm_hold</h5>
+<pre><code>confirm_hold(self, hotel_id: str, hold_id: str)</code></pre>
+<p>Delegate hold confirmation to the selected hotel actor.</p>
+</section>
+<section class='method' id='actors-inventoryactor-cancel-reservation'>
+<h5>cancel_reservation</h5>
+<pre><code>cancel_reservation(self, hotel_id: str, reservation_id: str)</code></pre>
+<p>Delegate reservation cancellation to the selected hotel actor.</p>
+</section>
+</div>
+</article>
+<article class='doc-card class-card' id='actors-paymentactor'>
+<div class='kind'>klasa</div>
+<h4>PaymentActor</h4>
+<p>Payment gateway simulator used by the booking workflow.</p>
+<div class='methods'>
+<section class='method' id='actors-paymentactor-process-payment'>
+<h5>process_payment</h5>
+<pre><code>process_payment(self, user_id: str, amount: float, payment_method: str)</code></pre>
+<p>Approve a payment unless the request uses an invalid method or amount.</p>
+</section>
+<section class='method' id='actors-paymentactor-refund-payment'>
+<h5>refund_payment</h5>
+<pre><code>refund_payment(self, payment_id: str, amount: float, reason: str = &#x27;&#x27;)</code></pre>
+<p>Issue a full refund for a previously processed payment.</p>
+</section>
+</div>
+</article>
+<article class='doc-card class-card' id='actors-reservationhistoryactor'>
+<div class='kind'>klasa</div>
+<h4>ReservationHistoryActor</h4>
+<p>Stores reservation history indexed by user and reservation id.</p>
+<div class='methods'>
+<section class='method' id='actors-reservationhistoryactor---init--'>
+<h5>__init__</h5>
+<pre><code>__init__(self)</code></pre>
+<p>Load persisted reservations into actor memory.</p>
+</section>
+<section class='method' id='actors-reservationhistoryactor-add-reservation'>
+<h5>add_reservation</h5>
+<pre><code>add_reservation(self, reservation: dict)</code></pre>
+<p>Add a confirmed reservation to memory and durable storage.</p>
+</section>
+<section class='method' id='actors-reservationhistoryactor-cancel-reservation'>
+<h5>cancel_reservation</h5>
+<pre><code>cancel_reservation(self, reservation_id: str)</code></pre>
+<p>Mark a reservation as cancelled in the in-memory history.</p>
+</section>
+<section class='method' id='actors-reservationhistoryactor-list-user-reservations'>
+<h5>list_user_reservations</h5>
+<pre><code>list_user_reservations(self, user_id: str)</code></pre>
+<p>Return all reservations known for a user.</p>
+</section>
+</div>
+</article>
+<article class='doc-card class-card' id='actors-bookingcoordinatoractor'>
+<div class='kind'>klasa</div>
+<h4>BookingCoordinatorActor</h4>
+<p>Orchestrates the reservation saga across inventory, payment and history.</p>
+<div class='methods'>
+<section class='method' id='actors-bookingcoordinatoractor---init--'>
+<h5>__init__</h5>
+<pre><code>__init__(self, inventory, payment, history, audit_log, metrics)</code></pre>
+<p>Wire dependent actors and restore persisted coordinator state.</p>
+</section>
+<section class='method' id='actors-bookingcoordinatoractor--cache-idempotent'>
+<h5>_cache_idempotent</h5>
+<pre><code>_cache_idempotent(self, user_id: str, idempotency_key: Optional[str], response: dict)</code></pre>
+<p>Cache a booking response under a user-scoped idempotency key.</p>
+</section>
+<section class='method' id='actors-bookingcoordinatoractor-book-room'>
+<h5>book_room</h5>
+<pre><code>book_room(self, user_id: str, hotel_id: str, room_type: str, nights: int, payment_method: str, idempotency_key: Optional[str] = None)</code></pre>
+<p>Run the end-to-end booking flow with rollback on payment failure.</p>
+</section>
+<section class='method' id='actors-bookingcoordinatoractor-cancel-booking'>
+<h5>cancel_booking</h5>
+<pre><code>cancel_booking(self, user_id: str, reservation_id: str)</code></pre>
+<p>Cancel a reservation and calculate the refund policy result.</p>
+</section>
+</div>
+</article>
+<article class='doc-card class-card' id='actors-metricsactor'>
+<div class='kind'>klasa</div>
+<h4>MetricsActor</h4>
+<p>Single-instance actor that owns all Prometheus metrics state.</p>
+<div class='methods'>
+<section class='method' id='actors-metricsactor---init--'>
+<h5>__init__</h5>
+<pre><code>__init__(self)</code></pre>
+<p>Create an isolated Prometheus registry for application metrics.</p>
+</section>
+<section class='method' id='actors-metricsactor-inc-reservation'>
+<h5>inc_reservation</h5>
+<pre><code>inc_reservation(self, status: str)</code></pre>
+<p>Increment reservation attempts by status.</p>
+</section>
+<section class='method' id='actors-metricsactor-inc-cancellation'>
+<h5>inc_cancellation</h5>
+<pre><code>inc_cancellation(self, status: str)</code></pre>
+<p>Increment cancellation attempts by status.</p>
+</section>
+<section class='method' id='actors-metricsactor-inc-payment'>
+<h5>inc_payment</h5>
+<pre><code>inc_payment(self, status: str)</code></pre>
+<p>Increment payment attempts by status.</p>
+</section>
+<section class='method' id='actors-metricsactor-set-active-holds'>
+<h5>set_active_holds</h5>
+<pre><code>set_active_holds(self, count: int)</code></pre>
+<p>Set the gauge for currently active room holds.</p>
+</section>
+<section class='method' id='actors-metricsactor-observe-booking-duration'>
+<h5>observe_booking_duration</h5>
+<pre><code>observe_booking_duration(self, seconds: float)</code></pre>
+<p>Record booking workflow duration in seconds.</p>
+</section>
+<section class='method' id='actors-metricsactor-observe-cancellation-duration'>
+<h5>observe_cancellation_duration</h5>
+<pre><code>observe_cancellation_duration(self, seconds: float)</code></pre>
+<p>Record cancellation workflow duration in seconds.</p>
+</section>
+<section class='method' id='actors-metricsactor-inc-http-request'>
+<h5>inc_http_request</h5>
+<pre><code>inc_http_request(self, method: str, endpoint: str, status_code: int)</code></pre>
+<p>Increment HTTP request count by method, path and status code.</p>
+</section>
+<section class='method' id='actors-metricsactor-inc-ray-retry'>
+<h5>inc_ray_retry</h5>
+<pre><code>inc_ray_retry(self)</code></pre>
+<p>Increment the counter for retried Ray calls.</p>
+</section>
+<section class='method' id='actors-metricsactor-get-metrics'>
+<h5>get_metrics</h5>
+<pre><code>get_metrics(self) -&gt; bytes</code></pre>
+<p>Serialize all metrics in Prometheus exposition format.</p>
+</section>
+</div>
+</article>
+<article class='doc-card class-card' id='actors-auditlogactor'>
+<div class='kind'>klasa</div>
+<h4>AuditLogActor</h4>
+<p>Writes and queries durable audit events for domain operations.</p>
+<div class='methods'>
+<section class='method' id='actors-auditlogactor-log'>
+<h5>log</h5>
+<pre><code>log(self, event_type: str, actor_id: Optional[str] = None, entity_id: Optional[str] = None, details: Optional[dict] = None)</code></pre>
+<p>Persist a single audit event with optional actor and entity context.</p>
+</section>
+<section class='method' id='actors-auditlogactor-list-logs'>
+<h5>list_logs</h5>
+<pre><code>list_logs(self, event_type: Optional[str] = None, actor_id: Optional[str] = None, entity_id: Optional[str] = None, limit: int = 100)</code></pre>
+<p>Load recent audit log entries using optional filters.</p>
+</section>
+</div>
+</article>
+<article class='doc-card class-card' id='actors-adminactor'>
+<div class='kind'>klasa</div>
+<h4>AdminActor</h4>
+<p>Administrative facade for changing hotel offers.</p>
+<div class='methods'>
+<section class='method' id='actors-adminactor---init--'>
+<h5>__init__</h5>
+<pre><code>__init__(self, inventory, audit_log)</code></pre>
+<p>Store dependencies required for administrative operations.</p>
+</section>
+<section class='method' id='actors-adminactor-upsert-hotel'>
+<h5>upsert_hotel</h5>
+<pre><code>upsert_hotel(self, hotel_id: str, name: str, city: str, rooms: Dict[str, dict])</code></pre>
+<p>Create or update a hotel and emit an audit event.</p>
+</section>
+</div>
+</article>
+</section><section class='module-panel ' id='module-db'>
+<div class='module-hero'><p class='eyebrow'>Modul</p><h2>db</h2>
+<p>Database models and persistence helpers for the reservation system.<br><br>The actors keep operational state in memory, while this module provides durable<br>snapshots and append-only audit data in Postgres through SQLAlchemy.</p></div>
+<h3>Funkcje modulu</h3>
+<article class='doc-card' id='db-init-db'>
+<div class='kind'>funkcja</div>
+<h4>init_db</h4>
+<pre><code>init_db()</code></pre>
+<p>Create database tables required by the application.</p>
+</article>
+<article class='doc-card' id='db-save-hotel-snapshot'>
+<div class='kind'>funkcja</div>
+<h4>save_hotel_snapshot</h4>
+<pre><code>save_hotel_snapshot(hotel_id: str, name: str, city: str, rooms: dict)</code></pre>
+<p>Insert or update the latest durable snapshot for a hotel.</p>
+</article>
+<article class='doc-card' id='db-load-hotels'>
+<div class='kind'>funkcja</div>
+<h4>load_hotels</h4>
+<pre><code>load_hotels() -&gt; list[dict]</code></pre>
+<p>Load all persisted hotel snapshots as dictionaries.</p>
+</article>
+<article class='doc-card' id='db-save-reservation'>
+<div class='kind'>funkcja</div>
+<h4>save_reservation</h4>
+<pre><code>save_reservation(reservation: dict)</code></pre>
+<p>Insert a new reservation or update mutable cancellation fields.</p>
+</article>
+<article class='doc-card' id='db-update-reservation-status'>
+<div class='kind'>funkcja</div>
+<h4>update_reservation_status</h4>
+<pre><code>update_reservation_status(reservation_id: str, status: str, refund_percent: int, refund_amount: float)</code></pre>
+<p>Update reservation status and refund information after cancellation.</p>
+</article>
+<article class='doc-card' id='db-load-reservations'>
+<div class='kind'>funkcja</div>
+<h4>load_reservations</h4>
+<pre><code>load_reservations() -&gt; list[dict]</code></pre>
+<p>Load all persisted reservations for actor state restoration.</p>
+</article>
+<article class='doc-card' id='db-load-reservations-by-user'>
+<div class='kind'>funkcja</div>
+<h4>load_reservations_by_user</h4>
+<pre><code>load_reservations_by_user(user_id: str) -&gt; list[dict]</code></pre>
+<p>Load persisted reservations belonging to one user.</p>
+</article>
+<article class='doc-card' id='db--reservation-to-dict'>
+<div class='kind'>funkcja</div>
+<h4>_reservation_to_dict</h4>
+<pre><code>_reservation_to_dict(item: Reservation) -&gt; dict</code></pre>
+<p>Convert a SQLAlchemy reservation row into actor-friendly data.</p>
+</article>
+<article class='doc-card' id='db-write-audit-log'>
+<div class='kind'>funkcja</div>
+<h4>write_audit_log</h4>
+<pre><code>write_audit_log(entry: dict)</code></pre>
+<p>Persist a single audit log entry.</p>
+</article>
+<article class='doc-card' id='db-load-audit-logs'>
+<div class='kind'>funkcja</div>
+<h4>load_audit_logs</h4>
+<pre><code>load_audit_logs(event_type: Optional[str] = None, actor_id: Optional[str] = None, entity_id: Optional[str] = None, limit: int = 100) -&gt; list[dict]</code></pre>
+<p>Load audit entries ordered from newest to oldest.</p>
+</article>
+<h3>Klasy</h3>
+<article class='doc-card class-card' id='db-hotel'>
+<div class='kind'>klasa</div>
+<h4>Hotel</h4>
+<p>Persisted hotel inventory snapshot.</p>
+</article>
+<article class='doc-card class-card' id='db-reservation'>
+<div class='kind'>klasa</div>
+<h4>Reservation</h4>
+<p>Persisted reservation record used for restore and history.</p>
+</article>
+<article class='doc-card class-card' id='db-auditlog'>
+<div class='kind'>klasa</div>
+<h4>AuditLog</h4>
+<p>Durable audit event produced by domain operations.</p>
+</article>
+</section><section class='module-panel ' id='module-main'>
+<div class='module-hero'><p class='eyebrow'>Modul</p><h2>main</h2>
+<p>FastAPI entrypoint for the Ray-based hotel reservation system.<br><br>The module owns HTTP routing, demo authentication, application lifecycle<br>initialization and the bridge between synchronous API handlers and Ray actors.<br>Ray actors keep domain state and execute distributed reservation workflows,<br>while FastAPI exposes a small JSON API consumed by the demo frontend.</p></div>
+<h3>Funkcje modulu</h3>
+<article class='doc-card' id='main--init-ray'>
+<div class='kind'>funkcja</div>
+<h4>_init_ray</h4>
+<pre><code>_init_ray()</code></pre>
+<p>Initialize Ray by joining a cluster when possible or starting local Ray.</p>
+</article>
+<article class='doc-card' id='main--get-or-create-named-actor'>
+<div class='kind'>funkcja</div>
+<h4>_get_or_create_named_actor</h4>
+<pre><code>_get_or_create_named_actor(actor_cls, actor_name: str, *args, spread: bool = False)</code></pre>
+<p>Return a detached named actor, creating it when it does not exist yet.</p>
+</article>
+<article class='doc-card' id='main--seed-data'>
+<div class='kind'>funkcja</div>
+<h4>_seed_data</h4>
+<pre><code>_seed_data(admin_actor)</code></pre>
+<p>Seed demo hotels through the admin actor for a useful local startup.</p>
+</article>
+<article class='doc-card' id='main--create-access-token'>
+<div class='kind'>funkcja</div>
+<h4>_create_access_token</h4>
+<pre><code>_create_access_token(username: str, role: str) -&gt; str</code></pre>
+<p>Create a short-lived JWT carrying the username and role.</p>
+</article>
+<article class='doc-card' id='main--get-current-user'>
+<div class='kind'>funkcja</div>
+<h4>_get_current_user</h4>
+<pre><code>_get_current_user(credentials: HTTPAuthorizationCredentials = Depends(_http_bearer)) -&gt; dict</code></pre>
+<p>Decode the bearer token and return the authenticated user context.</p>
+</article>
+<article class='doc-card' id='main--require-role'>
+<div class='kind'>funkcja</div>
+<h4>_require_role</h4>
+<pre><code>_require_role(required_role: str)</code></pre>
+<p>Build a FastAPI dependency that allows only the requested role.</p>
+</article>
+<article class='doc-card' id='main--snapshot-loop'>
+<div class='kind'>funkcja</div>
+<h4>_snapshot_loop</h4>
+<pre><code>_snapshot_loop(app: FastAPI)</code></pre>
+<p>Periodically persist hotel inventory snapshots from Ray actors.</p>
+</article>
+<article class='doc-card' id='main-lifespan'>
+<div class='kind'>funkcja</div>
+<h4>lifespan</h4>
+<pre><code>lifespan(app: FastAPI)</code></pre>
+<p>Create infrastructure resources and Ray actors for the API lifespan.</p>
+</article>
+<article class='doc-card' id='main--track-http-metrics'>
+<div class='kind'>funkcja</div>
+<h4>_track_http_metrics</h4>
+<pre><code>_track_http_metrics(request: Request, call_next)</code></pre>
+<p>Record every HTTP response in the Prometheus metrics actor.</p>
+</article>
+<article class='doc-card' id='main-health-check'>
+<div class='kind'>funkcja</div>
+<h4>health_check</h4>
+<pre><code>health_check()</code></pre>
+<p>Return process and Ray cluster health information for probes.</p>
+</article>
+<article class='doc-card' id='main-metrics-endpoint'>
+<div class='kind'>funkcja</div>
+<h4>metrics_endpoint</h4>
+<pre><code>metrics_endpoint()</code></pre>
+<p>Expose application metrics in Prometheus text format.</p>
+</article>
+<article class='doc-card' id='main-login'>
+<div class='kind'>funkcja</div>
+<h4>login</h4>
+<pre><code>login(payload: LoginRequest)</code></pre>
+<p>Authenticate a demo user and return a bearer token.</p>
+</article>
+<article class='doc-card' id='main-search-hotels'>
+<div class='kind'>funkcja</div>
+<h4>search_hotels</h4>
+<pre><code>search_hotels(payload: SearchRequest)</code></pre>
+<p>Search hotels using optional city, price and room type filters.</p>
+</article>
+<article class='doc-card' id='main-create-reservation'>
+<div class='kind'>funkcja</div>
+<h4>create_reservation</h4>
+<pre><code>create_reservation(payload: ReservationCreateRequest, user: dict = Depends(_get_current_user))</code></pre>
+<p>Create a reservation through the booking coordinator actor.</p>
+</article>
+<article class='doc-card' id='main-cancel-reservation'>
+<div class='kind'>funkcja</div>
+<h4>cancel_reservation</h4>
+<pre><code>cancel_reservation(payload: ReservationCancelRequest, user: dict = Depends(_get_current_user))</code></pre>
+<p>Cancel a confirmed reservation owned by the authenticated user.</p>
+</article>
+<article class='doc-card' id='main-user-reservations'>
+<div class='kind'>funkcja</div>
+<h4>user_reservations</h4>
+<pre><code>user_reservations(user_id: str, user: dict = Depends(_get_current_user))</code></pre>
+<p>Return the authenticated user&#x27;s reservation history.</p>
+</article>
+<article class='doc-card' id='main-upsert-hotel'>
+<div class='kind'>funkcja</div>
+<h4>upsert_hotel</h4>
+<pre><code>upsert_hotel(payload: HotelUpsertRequest, user: dict = Depends(_require_role(&#x27;admin&#x27;)))</code></pre>
+<p>Create or update a hotel offer; available only to administrators.</p>
+</article>
+<article class='doc-card' id='main-get-audit-logs'>
+<div class='kind'>funkcja</div>
+<h4>get_audit_logs</h4>
+<pre><code>get_audit_logs(event_type: Optional[str] = None, actor_id: Optional[str] = None, entity_id: Optional[str] = None, limit: int = 100, user: dict = Depends(_require_role(&#x27;admin&#x27;)))</code></pre>
+<p>List audit log entries with optional filters for administrators.</p>
+</article>
+</section><section class='module-panel ' id='module-models'>
+<div class='module-hero'><p class='eyebrow'>Modul</p><h2>models</h2>
+<p>Pydantic request and response schemas for the hotel reservation API.</p></div>
+<h3>Klasy</h3>
+<article class='doc-card class-card' id='models-loginrequest'>
+<div class='kind'>klasa</div>
+<h4>LoginRequest</h4>
+<p>Credentials accepted by the demo authentication endpoint.</p>
+</article>
+<article class='doc-card class-card' id='models-loginresponse'>
+<div class='kind'>klasa</div>
+<h4>LoginResponse</h4>
+<p>Bearer token returned after successful authentication.</p>
+</article>
+<article class='doc-card class-card' id='models-searchrequest'>
+<div class='kind'>klasa</div>
+<h4>SearchRequest</h4>
+<p>Optional filters used when searching hotel offers.</p>
+</article>
+<article class='doc-card class-card' id='models-roomconfig'>
+<div class='kind'>klasa</div>
+<h4>RoomConfig</h4>
+<p>Administrative definition of availability and nightly price for a room.</p>
+</article>
+<article class='doc-card class-card' id='models-hotelupsertrequest'>
+<div class='kind'>klasa</div>
+<h4>HotelUpsertRequest</h4>
+<p>Payload for creating or updating a hotel offer.</p>
+</article>
+<article class='doc-card class-card' id='models-reservationcreaterequest'>
+<div class='kind'>klasa</div>
+<h4>ReservationCreateRequest</h4>
+<p>Payload for starting the booking workflow.</p>
+</article>
+<article class='doc-card class-card' id='models-reservationcancelrequest'>
+<div class='kind'>klasa</div>
+<h4>ReservationCancelRequest</h4>
+<p>Payload for cancelling an existing reservation.</p>
+</article>
+<article class='doc-card class-card' id='models-reservationresponse'>
+<div class='kind'>klasa</div>
+<h4>ReservationResponse</h4>
+<p>Common response returned by booking and cancellation operations.</p>
+</article>
+<article class='doc-card class-card' id='models-userreservationsresponse'>
+<div class='kind'>klasa</div>
+<h4>UserReservationsResponse</h4>
+<p>Reservation history returned for a single user.</p>
+</article>
+<article class='doc-card class-card' id='models-auditlogentry'>
+<div class='kind'>klasa</div>
+<h4>AuditLogEntry</h4>
+<p>Single audit event as exposed by the administrative API.</p>
+</article>
+<article class='doc-card class-card' id='models-auditlogsresponse'>
+<div class='kind'>klasa</div>
+<h4>AuditLogsResponse</h4>
+<p>Collection response for audit log queries.</p>
+</article>
+</section></main>
+</div>
+<script>
+function showModule(name){
+document.querySelectorAll('.tab').forEach(function(el){el.classList.toggle('active',el.dataset.module===name);});
+document.querySelectorAll('.module-panel').forEach(function(el){el.classList.toggle('active',el.id==='module-'+name);});
+document.querySelectorAll('.module-nav').forEach(function(el){el.classList.toggle('active',el.dataset.module===name);});
+}
+document.querySelectorAll('.tab').forEach(function(tab){tab.addEventListener('click',function(){showModule(tab.dataset.module);history.replaceState(null,'','#module-'+tab.dataset.module);window.scrollTo({top:0,behavior:'smooth'});});});
+document.querySelectorAll('aside a').forEach(function(link){link.addEventListener('click',function(){showModule(link.dataset.module);});});
+if(location.hash){var target=document.getElementById(location.hash.slice(1));if(target){var panel=target.closest('.module-panel');if(panel){showModule(panel.id.replace('module-',''));setTimeout(function(){target.scrollIntoView();},0);}}}
+</script>
+</body>
+</html>
