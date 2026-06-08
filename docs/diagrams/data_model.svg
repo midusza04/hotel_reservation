@@ -1,43 +1,51 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650">
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="430" viewBox="0 0 1040 430">
 <defs>
   <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-    <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
   </marker>
-  <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
-    <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.14"/>
+  <filter id="shadow" x="-8%" y="-8%" width="120%" height="130%">
+    <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.10"/>
   </filter>
 </defs>
-<rect width="100%" height="100%" rx="24" fill="#f8fafc"/>
-<text x="40" y="52" font-family="Segoe UI, Arial" font-size="30" font-weight="700" fill="#0f172a">Model danych PostgreSQL</text>
-<rect x="110" y="135" width="280" height="255" rx="18" fill="#dcfce7" stroke="#22c55e" stroke-width="2" filter="url(#shadow)"/>
-<text x="128" y="167" font-family="Segoe UI, Arial" font-size="19" font-weight="700" fill="#0f172a">hotels</text>
-<text x="128" y="195" font-family="Segoe UI, Arial" font-size="15" fill="#475569">hotel_id PK</text>
-<text x="128" y="217" font-family="Segoe UI, Arial" font-size="15" fill="#475569">name</text>
-<text x="128" y="239" font-family="Segoe UI, Arial" font-size="15" fill="#475569">city</text>
-<text x="128" y="261" font-family="Segoe UI, Arial" font-size="15" fill="#475569">rooms JSON</text>
-<text x="128" y="283" font-family="Segoe UI, Arial" font-size="15" fill="#475569">updated_at</text>
-<rect x="480" y="120" width="310" height="305" rx="18" fill="#dbeafe" stroke="#2563eb" stroke-width="2" filter="url(#shadow)"/>
-<text x="498" y="152" font-family="Segoe UI, Arial" font-size="19" font-weight="700" fill="#0f172a">reservations</text>
-<text x="498" y="180" font-family="Segoe UI, Arial" font-size="15" fill="#475569">reservation_id PK</text>
-<text x="498" y="202" font-family="Segoe UI, Arial" font-size="15" fill="#475569">user_id</text>
-<text x="498" y="224" font-family="Segoe UI, Arial" font-size="15" fill="#475569">hotel_id</text>
-<text x="498" y="246" font-family="Segoe UI, Arial" font-size="15" fill="#475569">room_type</text>
-<text x="498" y="268" font-family="Segoe UI, Arial" font-size="15" fill="#475569">nights</text>
-<text x="498" y="290" font-family="Segoe UI, Arial" font-size="15" fill="#475569">total_price</text>
-<text x="498" y="312" font-family="Segoe UI, Arial" font-size="15" fill="#475569">payment_id</text>
-<text x="498" y="334" font-family="Segoe UI, Arial" font-size="15" fill="#475569">status</text>
-<text x="498" y="356" font-family="Segoe UI, Arial" font-size="15" fill="#475569">created_at</text>
-<text x="498" y="378" font-family="Segoe UI, Arial" font-size="15" fill="#475569">refund_percent</text>
-<text x="498" y="400" font-family="Segoe UI, Arial" font-size="15" fill="#475569">refund_amount</text>
-<rect x="860" y="150" width="280" height="255" rx="18" fill="#fef3c7" stroke="#f59e0b" stroke-width="2" filter="url(#shadow)"/>
-<text x="878" y="182" font-family="Segoe UI, Arial" font-size="19" font-weight="700" fill="#0f172a">audit_logs</text>
-<text x="878" y="210" font-family="Segoe UI, Arial" font-size="15" fill="#475569">id PK</text>
-<text x="878" y="232" font-family="Segoe UI, Arial" font-size="15" fill="#475569">event_id UNIQUE</text>
-<text x="878" y="254" font-family="Segoe UI, Arial" font-size="15" fill="#475569">event_type</text>
-<text x="878" y="276" font-family="Segoe UI, Arial" font-size="15" fill="#475569">actor_id</text>
-<text x="878" y="298" font-family="Segoe UI, Arial" font-size="15" fill="#475569">entity_id</text>
-<text x="878" y="320" font-family="Segoe UI, Arial" font-size="15" fill="#475569">details JSON</text>
-<text x="878" y="342" font-family="Segoe UI, Arial" font-size="15" fill="#475569">occurred_at</text>
-<line x1="390" y1="260" x2="480" y2="260" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/><rect x="363.0" y="238.0" width="144" height="24" rx="12" fill="#ffffff" stroke="#e2e8f0"/><text x="435.0" y="255.0" text-anchor="middle" font-family="Segoe UI, Arial" font-size="13" fill="#334155">hotel_id</text>
-<text x="430" y="245" text-anchor="middle" font-family="Segoe UI, Arial" font-size="14" fill="#475569">1:N</text>
+<rect width="100%" height="100%" rx="20" fill="#f8fafc"/>
+<text x="40" y="50" font-family="Segoe UI, Arial" font-size="26" font-weight="700" fill="#0f172a">Model danych PostgreSQL</text>
+<rect x="50" y="90" width="255" height="168" rx="10" fill="#fff" stroke="#22c55e" stroke-width="2" filter="url(#shadow)"/>
+<rect x="50" y="90" width="255" height="38" rx="10" fill="#dcfce7" stroke="#22c55e" stroke-width="2"/>
+<rect x="50" y="100" width="255" height="28" fill="#dcfce7"/>
+<text x="64" y="116" font-family="Segoe UI,Arial" font-size="17" font-weight="700" fill="#0f172a">hotels</text>
+<line x1="50" y1="128" x2="305" y2="128" stroke="#22c55e" stroke-width="1.5"/>
+<text x="64" y="152" font-family="Segoe UI,Arial" font-size="13" font-weight="600" fill="#0f172a">hotel_id  PK</text>
+<text x="64" y="176" font-family="Segoe UI,Arial" font-size="13"  fill="#475569">name</text>
+<text x="64" y="200" font-family="Segoe UI,Arial" font-size="13"  fill="#475569">city</text>
+<text x="64" y="224" font-family="Segoe UI,Arial" font-size="13"  fill="#475569">rooms  JSON</text>
+<text x="64" y="248" font-family="Segoe UI,Arial" font-size="13"  fill="#475569">updated_at</text>
+<rect x="368" y="78" width="295" height="312" rx="10" fill="#fff" stroke="#2563eb" stroke-width="2" filter="url(#shadow)"/>
+<rect x="368" y="78" width="295" height="38" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+<rect x="368" y="88" width="295" height="28" fill="#dbeafe"/>
+<text x="382" y="104" font-family="Segoe UI,Arial" font-size="17" font-weight="700" fill="#0f172a">reservations</text>
+<line x1="368" y1="116" x2="663" y2="116" stroke="#2563eb" stroke-width="1.5"/>
+<text x="382" y="140" font-family="Segoe UI,Arial" font-size="13" font-weight="600" fill="#0f172a">reservation_id  PK</text>
+<text x="382" y="164" font-family="Segoe UI,Arial" font-size="13"  fill="#475569">user_id</text>
+<text x="382" y="188" font-family="Segoe UI,Arial" font-size="13"  fill="#475569">hotel_id  →  hotels</text>
+<text x="382" y="212" font-family="Segoe UI,Arial" font-size="13"  fill="#475569">room_type</text>
+<text x="382" y="236" font-family="Segoe UI,Arial" font-size="13"  fill="#475569">nights</text>
+<text x="382" y="260" font-family="Segoe UI,Arial" font-size="13"  fill="#475569">total_price</text>
+<text x="382" y="284" font-family="Segoe UI,Arial" font-size="13"  fill="#475569">payment_id</text>
+<text x="382" y="308" font-family="Segoe UI,Arial" font-size="13"  fill="#475569">status</text>
+<text x="382" y="332" font-family="Segoe UI,Arial" font-size="13"  fill="#475569">created_at</text>
+<text x="382" y="356" font-family="Segoe UI,Arial" font-size="13"  fill="#475569">refund_percent</text>
+<text x="382" y="380" font-family="Segoe UI,Arial" font-size="13"  fill="#475569">refund_amount</text>
+<rect x="726" y="90" width="265" height="216" rx="10" fill="#fff" stroke="#f59e0b" stroke-width="2" filter="url(#shadow)"/>
+<rect x="726" y="90" width="265" height="38" rx="10" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+<rect x="726" y="100" width="265" height="28" fill="#fef3c7"/>
+<text x="740" y="116" font-family="Segoe UI,Arial" font-size="17" font-weight="700" fill="#0f172a">audit_logs</text>
+<line x1="726" y1="128" x2="991" y2="128" stroke="#f59e0b" stroke-width="1.5"/>
+<text x="740" y="152" font-family="Segoe UI,Arial" font-size="13" font-weight="600" fill="#0f172a">id  PK</text>
+<text x="740" y="176" font-family="Segoe UI,Arial" font-size="13" font-weight="600" fill="#0f172a">event_id  UNIQUE</text>
+<text x="740" y="200" font-family="Segoe UI,Arial" font-size="13"  fill="#475569">event_type</text>
+<text x="740" y="224" font-family="Segoe UI,Arial" font-size="13"  fill="#475569">actor_id</text>
+<text x="740" y="248" font-family="Segoe UI,Arial" font-size="13"  fill="#475569">entity_id</text>
+<text x="740" y="272" font-family="Segoe UI,Arial" font-size="13"  fill="#475569">details  JSON</text>
+<text x="740" y="296" font-family="Segoe UI,Arial" font-size="13"  fill="#475569">occurred_at</text>
+<line x1="305" y1="152" x2="368" y2="152" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/><rect x="296" y="130" width="76" height="20" rx="10" fill="#fff" stroke="#dde2ee" stroke-width="1.5"/><text x="334" y="145" text-anchor="middle" font-family="Segoe UI,Arial" font-size="12" fill="#334155">1 : N</text>
 </svg>

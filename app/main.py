@@ -46,10 +46,10 @@ JWT_EXPIRES_MINUTES = 60
 SNAPSHOT_INTERVAL_SECONDS = 60
 RAY_CALL_TIMEOUT_S = 15
 
-_FAKE_USERS = {
-    "user1": {"password": "pass", "role": "user"},
-    "admin": {"password": "admin", "role": "admin"},
+_FAKE_USERS: dict = {
+    f"user{i}": {"password": "pass", "role": "user"} for i in range(1, 51)
 }
+_FAKE_USERS["admin"] = {"password": "admin", "role": "admin"}
 
 _http_bearer = HTTPBearer()
 

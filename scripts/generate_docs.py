@@ -26,12 +26,12 @@ REPORT_PATH = DOCS_DIR / "raport_hotel_reservation.docx"
 DETAILED_REPORT_PATH = DOCS_DIR / "raport_hotel_reservation_szczegolowy.docx"
 
 DIAGRAMS = [
-    {"id": "architecture", "file": "architecture.svg", "title": "Diagram architektury systemu", "width": 1200, "height": 760},
-    {"id": "actors", "file": "actors.svg", "title": "Diagram relacji aktorow Ray", "width": 1200, "height": 760},
-    {"id": "booking_flow", "file": "booking_flow.svg", "title": "Diagram przeplywu rezerwacji", "width": 1200, "height": 720},
-    {"id": "cancel_flow", "file": "cancel_flow.svg", "title": "Diagram przeplywu anulowania", "width": 1200, "height": 680},
-    {"id": "data_model", "file": "data_model.svg", "title": "Diagram modelu danych", "width": 1200, "height": 650},
-    {"id": "events", "file": "events.svg", "title": "Diagram zdarzen audytowych", "width": 1200, "height": 620},
+    {"id": "architecture", "file": "architecture.svg", "title": "Diagram architektury systemu", "width": 1280, "height": 672},
+    {"id": "actors", "file": "actors.svg", "title": "Diagram relacji aktorow Ray", "width": 1000, "height": 590},
+    {"id": "booking_flow", "file": "booking_flow.svg", "title": "Diagram przeplywu rezerwacji", "width": 950, "height": 814},
+    {"id": "cancel_flow", "file": "cancel_flow.svg", "title": "Diagram przeplywu anulowania", "width": 950, "height": 806},
+    {"id": "data_model", "file": "data_model.svg", "title": "Diagram modelu danych", "width": 1040, "height": 430},
+    {"id": "events", "file": "events.svg", "title": "Diagram zdarzen audytowych", "width": 1200, "height": 560},
 ]
 
 
@@ -304,183 +304,449 @@ def _table(rows: list[list[str]]) -> str:
     return "".join(xml)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# SVG diagram helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
 def _svg_base(width: int, height: int, title: str, content: str) -> str:
     return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
 <defs>
   <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-    <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
   </marker>
-  <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
-    <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.14"/>
+  <filter id="shadow" x="-8%" y="-8%" width="120%" height="130%">
+    <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.10"/>
   </filter>
 </defs>
-<rect width="100%" height="100%" rx="24" fill="#f8fafc"/>
-<text x="40" y="52" font-family="Segoe UI, Arial" font-size="30" font-weight="700" fill="#0f172a">{escape(title)}</text>
+<rect width="100%" height="100%" rx="20" fill="#f8fafc"/>
+<text x="40" y="50" font-family="Segoe UI, Arial" font-size="26" font-weight="700" fill="#0f172a">{escape(title)}</text>
 {content}
 </svg>"""
 
 
-def _svg_box(x: int, y: int, w: int, h: int, title: str, subtitle: str = "", fill: str = "#ffffff", stroke: str = "#cbd5e1") -> str:
-    title_xml = escape(title)
-    subtitle_lines = [line.strip() for line in subtitle.split("\n") if line.strip()]
-    rows = [
-        f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="18" fill="{fill}" stroke="{stroke}" stroke-width="2" filter="url(#shadow)"/>',
-        f'<text x="{x + 18}" y="{y + 32}" font-family="Segoe UI, Arial" font-size="19" font-weight="700" fill="#0f172a">{title_xml}</text>',
+def _b(x: int, y: int, w: int, h: int, title: str,
+       sub: str = "", fill: str = "#fff", stroke: str = "#cbd5e1") -> str:
+    """Compact box helper: title at y+26, subtitle lines at y+46+."""
+    lines = [line.strip() for line in sub.split("\n") if line.strip()]
+    parts = [
+        f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="12" '
+        f'fill="{fill}" stroke="{stroke}" stroke-width="2" filter="url(#shadow)"/>',
+        f'<text x="{x+14}" y="{y+26}" font-family="Segoe UI,Arial" '
+        f'font-size="16" font-weight="700" fill="#0f172a">{escape(title)}</text>',
     ]
-    for index, line in enumerate(subtitle_lines):
-        rows.append(
-            f'<text x="{x + 18}" y="{y + 60 + index * 22}" font-family="Segoe UI, Arial" font-size="15" fill="#475569">{escape(line)}</text>'
+    for i, ln in enumerate(lines):
+        parts.append(
+            f'<text x="{x+14}" y="{y+46+i*19}" font-family="Segoe UI,Arial" '
+            f'font-size="13" fill="#475569">{escape(ln)}</text>'
         )
-    return "\n".join(rows)
+    return "\n".join(parts)
 
 
-def _svg_arrow(x1: int, y1: int, x2: int, y2: int, label: str = "") -> str:
-    mid_x = (x1 + x2) / 2
-    mid_y = (y1 + y2) / 2
-    label_xml = (
-        f'<rect x="{mid_x - 72}" y="{mid_y - 22}" width="144" height="24" rx="12" fill="#ffffff" stroke="#e2e8f0"/>'
-        f'<text x="{mid_x}" y="{mid_y - 5}" text-anchor="middle" font-family="Segoe UI, Arial" font-size="13" fill="#334155">{escape(label)}</text>'
-        if label
-        else ""
+def _container(x: int, y: int, w: int, h: int, label: str,
+               fill: str = "#faf5ff", stroke: str = "#c4b5fd") -> str:
+    """Dashed background container for grouping (e.g. Ray cluster)."""
+    return (
+        f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="16" '
+        f'fill="{fill}" stroke="{stroke}" stroke-width="1.5" stroke-dasharray="7 4"/>'
+        f'<text x="{x+14}" y="{y+20}" font-family="Segoe UI,Arial" font-size="12" '
+        f'font-style="italic" fill="#7c3aed">{escape(label)}</text>'
     )
-    return f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>{label_xml}'
 
+
+def _pa(d: str, label: str = "", lx: int = 0, ly: int = 0) -> str:
+    """Orthogonal path arrow with optional pill label."""
+    out = (f'<path d="{d}" stroke="#475569" stroke-width="2" fill="none" '
+           f'marker-end="url(#arrow)"/>')
+    if label:
+        out += (
+            f'<rect x="{lx-36}" y="{ly-12}" width="72" height="22" rx="11" '
+            f'fill="#fff" stroke="#dde2ee" stroke-width="1.5"/>'
+            f'<text x="{lx}" y="{ly+5}" text-anchor="middle" '
+            f'font-family="Segoe UI,Arial" font-size="12" fill="#334155">{escape(label)}</text>'
+        )
+    return out
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Diagram 1: Architecture
+# ─────────────────────────────────────────────────────────────────────────────
 
 def _diagram_architecture() -> str:
-    content = "\n".join(
-        [
-            _svg_box(55, 115, 210, 105, "Browser / SPA", "frontend/index.html\nJWT + fetch API", "#dbeafe", "#60a5fa"),
-            _svg_box(355, 105, 245, 125, "FastAPI", "main.py\nrouting, auth, lifecycle", "#e0f2fe", "#38bdf8"),
-            _svg_box(710, 95, 420, 150, "Ray cluster", "head node + worker nodes\nremote actors + scheduler", "#ede9fe", "#a78bfa"),
-            _svg_box(735, 295, 170, 92, "Inventory", "hotel registry", "#ffffff", "#a78bfa"),
-            _svg_box(940, 285, 165, 112, "HotelActors", "availability\nholds\nreservations", "#ffffff", "#a78bfa"),
-            _svg_box(690, 445, 205, 110, "BookingCoordinator", "booking saga\nrollback\nidempotency", "#ffffff", "#a78bfa"),
-            _svg_box(930, 445, 155, 95, "Payment", "payment sim\nrefunds", "#ffffff", "#a78bfa"),
-            _svg_box(690, 610, 195, 92, "History + Audit", "reservations\ndomain events", "#ffffff", "#a78bfa"),
-            _svg_box(75, 445, 250, 120, "PostgreSQL", "hotels\nreservations\naudit_logs", "#dcfce7", "#22c55e"),
-            _svg_box(380, 445, 215, 120, "Monitoring", "Prometheus\nGrafana dashboard\nalerts", "#fef3c7", "#f59e0b"),
-            _svg_arrow(265, 165, 355, 165, "HTTP"),
-            _svg_arrow(600, 165, 710, 165, "ray calls"),
-            _svg_arrow(820, 245, 820, 295),
-            _svg_arrow(905, 340, 940, 340),
-            _svg_arrow(800, 445, 820, 387),
-            _svg_arrow(895, 500, 930, 500),
-            _svg_arrow(785, 555, 785, 610),
-            _svg_arrow(690, 655, 325, 505, "SQL"),
-            _svg_arrow(490, 445, 490, 230, "metrics"),
-        ]
-    )
-    return _svg_base(1200, 760, "Architektura Ray Hotel", content)
+    c = []
 
+    # ── Tier 1: user-facing ──────────────────────────────────────────────────
+    c.append(_b(50, 78, 195, 82, "Browser / SPA",
+                "frontend · JWT · fetch", "#dbeafe", "#60a5fa"))
+    c.append(_b(310, 78, 205, 82, "FastAPI",
+                "routing · auth · lifecycle", "#e0f2fe", "#38bdf8"))
+    c.append(_pa("M 245,119 L 310,119", "HTTP", 277, 107))
+
+    # ── Tier 2: Ray cluster (background drawn first so boxes sit on top) ─────
+    c.append(_container(38, 198, 1224, 330,
+                        "Ray cluster  (head node + worker nodes)"))
+
+    #  Row 1 inside cluster
+    c.append(_b(60, 232, 228, 92, "BookingCoordinator",
+                "book_room()\ncancel_booking()", "#ede9fe", "#8b5cf6"))
+    c.append(_b(352, 242, 192, 78, "InventoryActor",
+                "hotel registry", "#f8fafc", "#94a3b8"))
+    c.append(_b(610, 242, 186, 78, "HotelActors",
+                "availability / holds", "#dbeafe", "#3b82f6"))
+    c.append(_b(1014, 242, 182, 78, "AdminActor",
+                "upsert_hotel()", "#f8fafc", "#94a3b8"))
+
+    #  Row 2 inside cluster
+    c.append(_b(60, 380, 170, 78, "PaymentActor",
+                "payment sim", "#fee2e2", "#f87171"))
+    c.append(_b(294, 380, 200, 78, "ReservHistory",
+                "per-user history", "#dcfce7", "#4ade80"))
+    c.append(_b(562, 380, 178, 78, "AuditLogActor",
+                "domain events", "#fef9c3", "#fbbf24"))
+    c.append(_b(810, 380, 170, 78, "MetricsActor",
+                "Prometheus state", "#fce7f3", "#f472b6"))
+
+    # ── Arrows inside cluster ─────────────────────────────────────────────────
+    # FastAPI → BookingCoord (bent: down, left, down)
+    c.append(_pa("M 412,160 L 412,220 L 174,220 L 174,232",
+                 "ray calls", 293, 209))
+
+    # BookingCoord → Inventory  (horizontal)
+    c.append(_pa("M 288,278 L 352,278"))
+
+    # Inventory → HotelActors  (horizontal)
+    c.append(_pa("M 544,282 L 610,282"))
+
+    # AdminActor → Inventory  (above row-1 boxes: up, left, down)
+    c.append(_pa("M 1105,242 L 1105,214 L 448,214 L 448,242"))
+
+    # BookingCoord → Payment  (straight down, aligned on x=145)
+    c.append(_pa("M 145,324 L 145,380", "pay", 168, 353))
+
+    # BookingCoord → ReservHistory  (bend right at y=360)
+    c.append(_pa("M 188,324 L 188,358 L 394,358 L 394,380", "hist", 290, 347))
+
+    # BookingCoord → AuditLog  (bend right at y=354, different x exit)
+    c.append(_pa("M 210,324 L 210,354 L 651,354 L 651,380", "audit", 430, 342))
+
+    # BookingCoord → Metrics  (bend right at y=350, yet another x exit)
+    c.append(_pa("M 230,324 L 230,350 L 895,350 L 895,380", "mtx", 562, 338))
+
+    # ── Tier 3: storage & monitoring ─────────────────────────────────────────
+    c.append(_b(50, 564, 215, 82, "PostgreSQL",
+                "hotels · reservations\naudit_logs", "#dcfce7", "#16a34a"))
+    c.append(_b(336, 564, 215, 82, "Monitoring",
+                "Prometheus + Grafana\nalerts", "#fef3c7", "#f59e0b"))
+
+    # PaymentActor area → PostgreSQL
+    c.append(_pa("M 145,458 L 145,536 L 158,536 L 158,564", "SQL", 183, 500))
+
+    # MetricsActor → Monitoring
+    c.append(_pa("M 895,458 L 895,536 L 443,536 L 443,564", "metrics", 669, 524))
+
+    return _svg_base(1280, 672, "Architektura Ray Hotel", "\n".join(c))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Diagram 2: Actor relations (column layout, no crossing arrows)
+# ─────────────────────────────────────────────────────────────────────────────
 
 def _diagram_actors() -> str:
-    content = "\n".join(
-        [
-            _svg_box(470, 100, 260, 115, "BookingCoordinatorActor", "book_room()\ncancel_booking()", "#ede9fe", "#8b5cf6"),
-            _svg_box(90, 275, 230, 105, "InventoryActor", "search / hold / confirm\nregistry HotelActor", "#e0f2fe", "#0284c7"),
-            _svg_box(90, 500, 230, 125, "HotelActor", "rooms\nholds with TTL\nlocal reservations", "#dbeafe", "#2563eb"),
-            _svg_box(470, 300, 230, 95, "PaymentActor", "process_payment()\nrefund_payment()", "#fee2e2", "#ef4444"),
-            _svg_box(800, 290, 250, 105, "ReservationHistoryActor", "by_user\nby_id", "#dcfce7", "#22c55e"),
-            _svg_box(455, 535, 245, 105, "AuditLogActor", "log()\nlist_logs()", "#fef3c7", "#f59e0b"),
-            _svg_box(805, 520, 245, 105, "MetricsActor", "counters\ngauges\nhistograms", "#fce7f3", "#ec4899"),
-            _svg_box(90, 95, 230, 105, "AdminActor", "upsert_hotel()", "#f1f5f9", "#64748b"),
-            _svg_arrow(470, 160, 320, 325, "inventory"),
-            _svg_arrow(320, 380, 205, 500, "delegates"),
-            _svg_arrow(600, 215, 585, 300, "payment"),
-            _svg_arrow(730, 160, 800, 325, "history"),
-            _svg_arrow(590, 215, 575, 535, "audit"),
-            _svg_arrow(730, 170, 805, 560, "metrics"),
-            _svg_arrow(205, 200, 205, 275, "admin"),
-            _svg_arrow(320, 150, 470, 135, "audit"),
-        ]
-    )
-    return _svg_base(1200, 760, "Relacje aktorow Ray", content)
+    c = []
 
+    # ── Column positions ──────────────────────────────────────────────────────
+    # Col A x=55-258  Col B x=310-515  Col C x=570-775  Col D x=830-1080
+
+    # Level 1
+    c.append(_b(55, 85, 200, 78,  "AdminActor",
+                "upsert_hotel()", "#f8fafc", "#64748b"))
+    c.append(_b(570, 76, 256, 96, "BookingCoordinator",
+                "book_room()\ncancel_booking()  idempotency", "#ede9fe", "#8b5cf6"))
+
+    # Level 2
+    c.append(_b(55, 268, 202, 96,  "InventoryActor",
+                "search_hotels()\nhold / confirm / cancel", "#e0f2fe", "#0284c7"))
+    c.append(_b(330, 268, 185, 78,  "PaymentActor",
+                "process_payment()\nrefund_payment()", "#fee2e2", "#ef4444"))
+    c.append(_b(590, 268, 215, 78, "ReservHistory",
+                "add_reservation()\nlist_user_reservations()", "#dcfce7", "#16a34a"))
+
+    # Level 3
+    c.append(_b(55, 466, 202, 96,  "HotelActors",
+                "try_hold()  confirm_hold()\ncancel_reservation()", "#dbeafe", "#2563eb"))
+    c.append(_b(330, 466, 185, 78, "AuditLogActor",
+                "log()\nlist_logs()", "#fef3c7", "#f59e0b"))
+    c.append(_b(590, 466, 185, 78, "MetricsActor",
+                "inc_*()  observe_*()\nget_metrics()", "#fce7f3", "#ec4899"))
+
+    # ── Arrows ────────────────────────────────────────────────────────────────
+    # Admin → Inventory  (straight down, same centre x=155)
+    c.append(_pa("M 155,163 L 155,268", "admin", 180, 215))
+
+    # BookingCoord → Inventory  (left at y=138 – above AdminActor, then down)
+    c.append(_pa("M 570,138 L 272,138 L 272,316 L 257,316",
+                 "hold/confirm", 410, 126))
+
+    # BookingCoord → Payment  (down from coord bottom then left)
+    c.append(_pa("M 695,172 L 695,248 L 422,248 L 422,268",
+                 "payment", 558, 236))
+
+    # BookingCoord → ReservHistory  (short down, almost vertical)
+    c.append(_pa("M 718,172 L 718,252 L 697,252 L 697,268",
+                 "history", 707, 240))
+
+    # Inventory → HotelActors  (straight down, same centre x=156)
+    c.append(_pa("M 156,364 L 156,466", "delegates", 184, 415))
+
+    # BookingCoord → AuditLogActor
+    # Route: right of diagram (x=880), down to y=480, left to AuditLog right (x=515)
+    c.append(_pa("M 826,138 L 880,138 L 880,480 L 515,480 L 515,466",
+                 "audit", 875, 310))
+
+    # BookingCoord → MetricsActor
+    # Route: right of diagram (x=900), down to y=505, left to MetricsActor right (x=775)
+    c.append(_pa("M 826,158 L 900,158 L 900,505 L 775,505 L 775,466",
+                 "metrics", 895, 330))
+
+    return _svg_base(1000, 590, "Relacje aktorow Ray", "\n".join(c))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Diagram 3: Booking flow (sequential numbered steps)
+# ─────────────────────────────────────────────────────────────────────────────
 
 def _diagram_booking_flow() -> str:
-    content = "\n".join(
-        [
-            _svg_box(55, 120, 170, 80, "1. User", "wybiera pokoj", "#dbeafe", "#3b82f6"),
-            _svg_box(275, 120, 190, 80, "2. FastAPI", "JWT + request", "#e0f2fe", "#0284c7"),
-            _svg_box(520, 105, 250, 110, "3. Coordinator", "saga rezerwacji\nidempotency", "#ede9fe", "#8b5cf6"),
-            _svg_box(830, 85, 220, 90, "4. Inventory", "hold_room()", "#f1f5f9", "#64748b"),
-            _svg_box(830, 225, 220, 90, "5. HotelActor", "try_hold()\navailable -= 1", "#dbeafe", "#2563eb"),
-            _svg_box(520, 300, 250, 90, "6. PaymentActor", "process_payment()", "#fee2e2", "#ef4444"),
-            _svg_box(830, 395, 220, 90, "7. HotelActor", "confirm_hold()\nreservation_id", "#dcfce7", "#22c55e"),
-            _svg_box(520, 505, 250, 90, "8. History + DB", "save reservation", "#dcfce7", "#16a34a"),
-            _svg_box(215, 505, 210, 90, "9. Audit + Metrics", "events\ncounters", "#fef3c7", "#f59e0b"),
-            _svg_box(55, 505, 130, 90, "10. API", "ok=true", "#e0f2fe", "#0284c7"),
-            _svg_arrow(225, 160, 275, 160),
-            _svg_arrow(465, 160, 520, 160),
-            _svg_arrow(770, 160, 830, 130, "hold"),
-            _svg_arrow(940, 175, 940, 225),
-            _svg_arrow(830, 270, 770, 345, "hold_id"),
-            _svg_arrow(645, 215, 645, 300, "pay"),
-            _svg_arrow(770, 345, 830, 430, "confirm"),
-            _svg_arrow(830, 440, 770, 550, "confirmed"),
-            _svg_arrow(520, 550, 425, 550),
-            _svg_arrow(215, 550, 185, 550),
-        ]
-    )
-    return _svg_base(1200, 720, "Normalny przeplyw rezerwacji", content)
+    c = []
+    FF = "#475569"  # font fill for connectors
 
+    # Header row: User → FastAPI → BookingCoordinator
+    c.append(_b(44, 78, 148, 72, "User / SPA",
+                "wybiera pokoj", "#dbeafe", "#3b82f6"))
+    c.append(_b(252, 78, 190, 72, "FastAPI",
+                "sprawdza JWT", "#e0f2fe", "#0284c7"))
+    c.append(_b(504, 68, 252, 92, "BookingCoordinator",
+                "saga · idempotency", "#ede9fe", "#8b5cf6"))
+    c.append(_pa("M 192,114 L 252,114", "HTTP", 222, 102))
+    c.append(_pa("M 442,114 L 504,114", "book_room()", 472, 102))
+
+    # Steps ─ each 750 wide, centred, 94px tall (2 subtitle lines)
+    SX, SW = 96, 750
+    steps = [
+        (200, "#e0f2fe", "#0284c7",
+         "1  hold pokoju",
+         "InventoryActor.hold_room() → HotelActor.try_hold()\n"
+         "dostepnosc -= 1 · generowany hold_id · TTL = 300 s"),
+        (320, "#fee2e2", "#ef4444",
+         "2  platnosc",
+         "PaymentActor.process_payment(user_id, amount, method)\n"
+         "kwota = cena_pokoju × liczba_nocy · metoda: card / cash"),
+        (440, "#dcfce7", "#16a34a",
+         "3  potwierdzenie hold",
+         "InventoryActor.confirm_hold() → HotelActor.confirm_hold()\n"
+         "hold usuwany · generowany reservation_id"),
+        (560, "#fef9c3", "#f59e0b",
+         "4  zapis i zdarzenia",
+         "ReservHistory.add_reservation() + DB save_reservation()\n"
+         "AuditLog.log(RESERVATION_CREATED) + MetricsActor.inc_reservation()"),
+        (694, "#e0f2fe", "#0284c7",
+         "5  odpowiedz",
+         "ReservationResponse(ok=True, reservation_id, payment_id, total_price)"),
+    ]
+    prev_bottom = 160
+    for y, fill, stroke, title, sub in steps:
+        lines = sub.count("\n") + 1
+        h = 88 + (lines - 1) * 18
+        c.append(_b(SX, y, SW, h, title, sub, fill, stroke))
+        c.append(_pa(f"M {SX + SW//2},{prev_bottom} L {SX + SW//2},{y}"))
+        prev_bottom = y + h
+
+    return _svg_base(950, 814, "Normalny przeplyw rezerwacji (Happy Path)", "\n".join(c))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Diagram 4: Cancel flow (sequential)
+# ─────────────────────────────────────────────────────────────────────────────
 
 def _diagram_cancel_flow() -> str:
-    content = "\n".join(
-        [
-            _svg_box(80, 120, 190, 80, "1. User/SPA", "Cancel booking", "#dbeafe", "#3b82f6"),
-            _svg_box(330, 120, 205, 80, "2. FastAPI", "JWT + owner check", "#e0f2fe", "#0284c7"),
-            _svg_box(610, 105, 250, 110, "3. Coordinator", "validate reservation\ncalculate refund", "#ede9fe", "#8b5cf6"),
-            _svg_box(900, 95, 215, 90, "4. Inventory", "cancel_reservation", "#f1f5f9", "#64748b"),
-            _svg_box(900, 245, 215, 90, "5. HotelActor", "status cancelled\navailable += 1", "#dcfce7", "#22c55e"),
-            _svg_box(610, 425, 250, 90, "6. History + DB", "status cancelled\nrefund fields", "#dcfce7", "#16a34a"),
-            _svg_box(330, 425, 205, 90, "7. Audit + Metrics", "RESERVATION_CANCELLED", "#fef3c7", "#f59e0b"),
-            _svg_box(80, 425, 190, 90, "8. Response", "refund_percent\nrefund_amount", "#e0f2fe", "#0284c7"),
-            _svg_arrow(270, 160, 330, 160),
-            _svg_arrow(535, 160, 610, 160),
-            _svg_arrow(860, 150, 900, 140),
-            _svg_arrow(1005, 185, 1005, 245),
-            _svg_arrow(900, 290, 860, 470),
-            _svg_arrow(610, 470, 535, 470),
-            _svg_arrow(330, 470, 270, 470),
-        ]
-    )
-    return _svg_base(1200, 680, "Przeplyw anulowania rezerwacji", content)
+    c = []
 
+    # Header
+    c.append(_b(44, 78, 155, 72,  "User / SPA",
+                "Cancel booking", "#dbeafe", "#3b82f6"))
+    c.append(_b(258, 78, 195, 72, "FastAPI",
+                "JWT + owner check", "#e0f2fe", "#0284c7"))
+    c.append(_b(514, 68, 252, 92, "BookingCoordinator",
+                "walidacja · polityka zwrotu", "#ede9fe", "#8b5cf6"))
+    c.append(_pa("M 199,114 L 258,114", "HTTP", 228, 102))
+    c.append(_pa("M 453,114 L 514,114", "cancel_booking()", 483, 102))
+
+    SX, SW = 96, 750
+    steps = [
+        (200, "#f8fafc", "#94a3b8",
+         "1  weryfikacja wlasciciela",
+         "sprawdzenie: reservation.user_id == user_id z tokenu JWT\n"
+         "jesli niezgodnosc → ok=False, brak dalszych operacji"),
+        (318, "#dcfce7", "#16a34a",
+         "2  anulacja w hotelu",
+         "InventoryActor.cancel_reservation() → HotelActor.cancel_reservation()\n"
+         "status = cancelled · available += 1 · snapshot do DB"),
+        (436, "#fef3c7", "#f59e0b",
+         "3  polityka zwrotu",
+         "czas od created_at <= 1h → refund_percent = 100\n"
+         "czas od created_at > 1h  → refund_percent = 0"),
+        (554, "#dbeafe", "#3b82f6",
+         "4  aktualizacja danych",
+         "ReservHistory.cancel_reservation() + DB update_reservation_status()\n"
+         "AuditLog.log(RESERVATION_CANCELLED) + MetricsActor.inc_cancellation()"),
+        (686, "#e0f2fe", "#0284c7",
+         "5  odpowiedz",
+         "ReservationResponse(ok=True, refund_percent, refund_amount)"),
+    ]
+    prev_bottom = 160
+    for y, fill, stroke, title, sub in steps:
+        lines = sub.count("\n") + 1
+        h = 88 + (lines - 1) * 18
+        c.append(_b(SX, y, SW, h, title, sub, fill, stroke))
+        c.append(_pa(f"M {SX + SW//2},{prev_bottom} L {SX + SW//2},{y}"))
+        prev_bottom = y + h
+
+    return _svg_base(950, 806, "Przeplyw anulowania rezerwacji", "\n".join(c))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Diagram 5: Data model (ER tables side by side)
+# ─────────────────────────────────────────────────────────────────────────────
 
 def _diagram_data_model() -> str:
-    content = "\n".join(
-        [
-            _svg_box(110, 135, 280, 255, "hotels", "hotel_id PK\nname\ncity\nrooms JSON\nupdated_at", "#dcfce7", "#22c55e"),
-            _svg_box(480, 120, 310, 305, "reservations", "reservation_id PK\nuser_id\nhotel_id\nroom_type\nnights\ntotal_price\npayment_id\nstatus\ncreated_at\nrefund_percent\nrefund_amount", "#dbeafe", "#2563eb"),
-            _svg_box(860, 150, 280, 255, "audit_logs", "id PK\nevent_id UNIQUE\nevent_type\nactor_id\nentity_id\ndetails JSON\noccurred_at", "#fef3c7", "#f59e0b"),
-            _svg_arrow(390, 260, 480, 260, "hotel_id"),
-            '<text x="430" y="245" text-anchor="middle" font-family="Segoe UI, Arial" font-size="14" fill="#475569">1:N</text>',
-        ]
-    )
-    return _svg_base(1200, 650, "Model danych PostgreSQL", content)
+    c = []
 
+    def _table(x: int, y: int, w: int, name: str, fields: list[str],
+               hdr_fill: str, hdr_stroke: str) -> str:
+        row_h = 24
+        body_h = len(fields) * row_h + 10
+        hdr_h = 38
+        parts = [
+            f'<rect x="{x}" y="{y}" width="{w}" height="{hdr_h+body_h}" rx="10" '
+            f'fill="#fff" stroke="{hdr_stroke}" stroke-width="2" filter="url(#shadow)"/>',
+            f'<rect x="{x}" y="{y}" width="{w}" height="{hdr_h}" rx="10" '
+            f'fill="{hdr_fill}" stroke="{hdr_stroke}" stroke-width="2"/>',
+            f'<rect x="{x}" y="{y+10}" width="{w}" height="{hdr_h-10}" fill="{hdr_fill}"/>',
+            f'<text x="{x+14}" y="{y+26}" font-family="Segoe UI,Arial" '
+            f'font-size="17" font-weight="700" fill="#0f172a">{escape(name)}</text>',
+        ]
+        # horizontal separator
+        parts.append(
+            f'<line x1="{x}" y1="{y+hdr_h}" x2="{x+w}" y2="{y+hdr_h}" '
+            f'stroke="{hdr_stroke}" stroke-width="1.5"/>'
+        )
+        for i, field in enumerate(fields):
+            fy = y + hdr_h + 8 + i * row_h
+            bold = "font-weight=\"600\"" if ("PK" in field or "UNIQUE" in field) else ""
+            col = "#0f172a" if ("PK" in field or "UNIQUE" in field) else "#475569"
+            parts.append(
+                f'<text x="{x+14}" y="{fy+16}" font-family="Segoe UI,Arial" '
+                f'font-size="13" {bold} fill="{col}">{escape(field)}</text>'
+            )
+        return "\n".join(parts)
+
+    c.append(_table(50, 90, 255, "hotels",
+                    ["hotel_id  PK", "name", "city", "rooms  JSON", "updated_at"],
+                    "#dcfce7", "#22c55e"))
+
+    c.append(_table(368, 78, 295, "reservations",
+                    ["reservation_id  PK", "user_id", "hotel_id  →  hotels",
+                     "room_type", "nights", "total_price", "payment_id",
+                     "status", "created_at", "refund_percent", "refund_amount"],
+                    "#dbeafe", "#2563eb"))
+
+    c.append(_table(726, 90, 265, "audit_logs",
+                    ["id  PK", "event_id  UNIQUE", "event_type",
+                     "actor_id", "entity_id", "details  JSON", "occurred_at"],
+                    "#fef3c7", "#f59e0b"))
+
+    # FK arrow: hotels → reservations (horizontal between tables, mid-height of hotels)
+    arrow_y = 90 + 38 + 3 * 24 + 8  # at hotel_id row area → use row 1 y for clarity
+    arrow_y = 152  # hotels.hotel_id ≈ y=90+38+8+24=160; reservations.hotel_id row ≈ same
+    c.append(
+        f'<line x1="305" y1="{arrow_y}" x2="368" y2="{arrow_y}" '
+        f'stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>'
+        f'<rect x="296" y="{arrow_y-22}" width="76" height="20" rx="10" '
+        f'fill="#fff" stroke="#dde2ee" stroke-width="1.5"/>'
+        f'<text x="334" y="{arrow_y-7}" text-anchor="middle" font-family="Segoe UI,Arial" '
+        f'font-size="12" fill="#334155">1 : N</text>'
+    )
+
+    return _svg_base(1040, 430, "Model danych PostgreSQL", "\n".join(c))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Diagram 6: Audit events (fan-in to AuditLogActor via horizontal bus)
+# ─────────────────────────────────────────────────────────────────────────────
 
 def _diagram_events() -> str:
-    content = "\n".join(
-        [
-            _svg_box(75, 120, 210, 85, "Logowanie", "LOGIN", "#e0f2fe", "#0284c7"),
-            _svg_box(350, 120, 220, 85, "Admin", "HOTEL_UPSERTED", "#f1f5f9", "#64748b"),
-            _svg_box(650, 105, 220, 115, "Hold", "HOLD_CREATED\nHOLD_RELEASED\nHOLD_CONFIRMED", "#ede9fe", "#8b5cf6"),
-            _svg_box(930, 105, 220, 115, "Platnosc", "PAYMENT_SUCCESS\nPAYMENT_FAILED\nPAYMENT_REFUNDED", "#fee2e2", "#ef4444"),
-            _svg_box(255, 350, 250, 105, "Rezerwacja", "RESERVATION_CREATED\nRESERVATION_CANCELLED", "#dcfce7", "#22c55e"),
-            _svg_box(610, 350, 250, 105, "Awaria zwrotu", "REFUND_FAILED", "#fee2e2", "#ef4444"),
-            _svg_box(430, 500, 300, 75, "AuditLogActor", "write_audit_log(entry)", "#fef3c7", "#f59e0b"),
-            _svg_arrow(180, 205, 515, 500),
-            _svg_arrow(460, 205, 540, 500),
-            _svg_arrow(760, 220, 585, 500),
-            _svg_arrow(1040, 220, 640, 500),
-            _svg_arrow(380, 455, 540, 500),
-            _svg_arrow(735, 455, 640, 500),
-        ]
-    )
-    return _svg_base(1200, 620, "Typy zdarzen audytowych", content)
+    c = []
 
+    # Six event-group boxes in ONE row, then a horizontal bus, then AuditLogActor
+    BUS_Y = 280   # y of horizontal bus line
+    ACTOR_Y = 336  # top of AuditLogActor box
+
+    groups = [
+        (30,   80, 148, 78, "Logowanie",   "LOGIN", "#e0f2fe", "#0284c7"),
+        (198,  80, 178, 78, "Admin",        "HOTEL_UPSERTED", "#f1f5f9", "#64748b"),
+        (396,  70, 178, 98, "Hold",
+         "HOLD_CREATED\nHOLD_RELEASED\nHOLD_CONFIRMED", "#ede9fe", "#8b5cf6"),
+        (594,  70, 185, 98, "Platnosc",
+         "PAYMENT_SUCCESS\nPAYMENT_FAILED\nPAYMENT_REFUNDED", "#fee2e2", "#ef4444"),
+        (799,  70, 195, 98, "Rezerwacja",
+         "RESERVATION_CREATED\nRESERVATION_CANCELLED", "#dcfce7", "#22c55e"),
+        (1014, 80, 155, 78, "Blad zwrotu",
+         "REFUND_FAILED", "#fee2e2", "#ef4444"),
+    ]
+
+    centres = []
+    for (bx, by, bw, bh, title, sub, fill, stroke) in groups:
+        c.append(_b(bx, by, bw, bh, title, sub, fill, stroke))
+        cx = bx + bw // 2
+        box_bottom = by + bh
+        centres.append((cx, box_bottom))
+
+    # Bus line (horizontal)
+    left_x  = centres[0][0]
+    right_x = centres[-1][0]
+    c.append(
+        f'<line x1="{left_x}" y1="{BUS_Y}" x2="{right_x}" y2="{BUS_Y}" '
+        f'stroke="#94a3b8" stroke-width="2"/>'
+    )
+
+    # Verticals from each box bottom to the bus
+    for cx, bottom in centres:
+        c.append(
+            f'<line x1="{cx}" y1="{bottom}" x2="{cx}" y2="{BUS_Y}" '
+            f'stroke="#94a3b8" stroke-width="1.5"/>'
+        )
+
+    # Central arrow from bus midpoint down to AuditLogActor
+    mid_x = (left_x + right_x) // 2
+    c.append(_pa(f"M {mid_x},{BUS_Y} L {mid_x},{ACTOR_Y}",
+                 "log(entry)", mid_x, BUS_Y + (ACTOR_Y - BUS_Y) // 2))
+
+    # AuditLogActor
+    AW = 320
+    AX = mid_x - AW // 2
+    c.append(_b(AX, ACTOR_Y, AW, 78, "AuditLogActor",
+                "write_audit_log(entry)", "#fef3c7", "#f59e0b"))
+
+    # PostgreSQL below AuditLogActor
+    PY = ACTOR_Y + 78 + 50
+    PW = 280
+    PX = mid_x - PW // 2
+    c.append(_b(PX, PY, PW, 72, "PostgreSQL  audit_logs",
+                "persisted domain events", "#dcfce7", "#16a34a"))
+    c.append(_pa(f"M {mid_x},{ACTOR_Y+78} L {mid_x},{PY}", "SQL", mid_x, ACTOR_Y + 78 + 25))
+
+    return _svg_base(1200, PY + 92, "Typy zdarzen audytowych", "\n".join(c))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 def generate_diagrams() -> None:
     """Generate SVG diagrams used by the DOCX report."""
