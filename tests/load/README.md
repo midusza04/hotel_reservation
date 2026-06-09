@@ -1,6 +1,23 @@
 # Testy obciążeniowe – Ray Hotel
 
-## Wymagania
+Dokumentacja HTML: [`docs/load_tests/index.html`](../../docs/load_tests/index.html)  
+Teoria i interpretacja metryk: [`TEORIA_TESTOW.md`](TEORIA_TESTOW.md)
+
+## Struktura plików
+
+| Plik | Opis |
+|------|------|
+| `locustfile.py` | Główny scenariusz: `HotelUser` (gość) + `AdminUser` (audyt, metryki) |
+| `locustfile_contention.py` | Mixed contention: book + cancel + search (bez AdminUser) |
+| `locustfile_pure_contention.py` | Pure contention: tylko book na `h-waw-1/single` |
+| `seed_hotels.py` | Dosiewanie pojemności hoteli przez `/admin/hotels` |
+| `verify_contention.py` | Analiza audit logu i dostępności po contention teście |
+| `run_contention.ps1` | Pełna automatyzacja contention (kill → seed → baseline → locust → verify) |
+| `results/` | CSV z Locust (`*_stats.csv`, `*_stats_history.csv`, `*_failures.csv`) |
+
+**Konta testowe:** `user1`–`user50` / hasło `pass`, `admin` / `admin`.
+
+---
 
 ```bash
 pip install locust
@@ -11,7 +28,7 @@ zależności projektu — komunikuje się z działającym API przez HTTP.
 
 ---
 
-## Ważne – PowerShell vs bash
+## Wymagania
 
 W **PowerShell** znak `\` **nie jest** kontynuacją linii (to składnia bash/Linux).
 Używaj albo jednej długiej linii, albo znaku `` ` `` (backtick):
@@ -105,13 +122,13 @@ Główny test przed oddaniem systemu.
 
 ```powershell
 python tests/load/seed_hotels.py --rooms 500
-locust -f tests/load/locustfile.py --host http://localhost:8000 --headless -u 30 -r 5 -t 120s --csv tests/load/results/load
+locust -f tests/load/locustfile.py --host http://localhost:8000 --headless -u 100 -r 5 -t 120s --csv tests/load/results/load
 ```
 
 | Parametr | Wartość |
 |----------|---------|
-| Użytkownicy | 30 |
-| Ramp-up | 5 użytkowników/s (30 s na pełne obciążenie) |
+| Użytkownicy | 100 |
+| Ramp-up | 10 użytkowników/s |
 | Czas trwania | 2 min |
 | Oczekiwany wynik | failure rate < 1 %, p95 < 1 000 ms |
 
@@ -153,13 +170,13 @@ Testuje, czy system przeżyje nagły skok bez crashu.
 
 ```powershell
 python tests/load/seed_hotels.py --rooms 1000
-locust -f tests/load/locustfile.py --host http://localhost:8000 --headless -u 80 -r 80 -t 60s --csv tests/load/results/spike
+locust -f tests/load/locustfile.py --host http://localhost:8000 --headless -u 1000 -r 1000 -t 60s --csv tests/load/results/spike
 ```
 
 | Parametr | Wartość |
 |----------|---------|
-| Użytkownicy | 80 |
-| Ramp-up | 80/s (wszyscy od razu!) |
+| Użytkownicy | 100 |
+| Ramp-up | 100/s (wszyscy od razu!) |
 | Czas trwania | 60 s |
 
 **Co weryfikuje:**
@@ -213,15 +230,54 @@ identyczny `reservation_id`. Locust zgłosi błąd, jeśli system zwróci różn
 **Cel:** Wielu użytkowników próbuje zarezerwować ten sam typ pokoju jednocześnie.
 Testuje saga hold→payment→confirm i ochronę przed double-booking.
 
-Najpierw ogranicz pojemność do 1 pokoju:
+**Ważne:** Stary Locust z `locustfile.py` w tle dokłada pokoje (`AdminUser`).
+Zatrzymaj go przed testem albo użyj gotowego skryptu.
+
+#### Pure contention (zalecane) – wyścig o 1 pokój
+
+20 użytkowników, tylko `book`, cel: `h-waw-1/single`, bez cancel:
 
 ```powershell
-python tests/load/seed_hotels.py --rooms 1
-locust -f tests/load/locustfile.py --host http://localhost:8000 --headless -u 20 -r 20 -t 30s --csv tests/load/results/contention
+.\tests\load\run_contention.ps1
+# lub ręcznie:
+locust -f tests/load/locustfile_pure_contention.py --host http://localhost:8000 --headless -u 20 -r 20 -t 30s
+python tests/load/verify_contention.py --seeded-rooms 1 --hotel h-waw-1 --room-type single
 ```
 
-**Oczekiwany wynik:** Dokładnie 1 rezerwacja powinna się udać (ok=true),
-pozostałe dostaną ok=false z `"Brak dostepnych pokoi"`. Brak double-booking.
+**Oczekiwany wynik:** dokładnie **1 aktywna** rezerwacja na `h-waw-1/single`,
+reszta requestów → `NO_AVAILABILITY`, **0× HOTEL_UPSERTED**, `available >= 0`.
+
+#### Mixed contention – book + cancel + search
+
+```powershell
+.\tests\load\run_contention.ps1 -Mixed
+```
+
+Testuje churn (wielokrotne book/cancel), nie czysty wyścig. Weryfikacja patrzy
+na **aktywne** rezerwacje (po anulowaniach), nie sumę `CREATED`.
+
+#### Weryfikacja wyników (`verify_contention.py`)
+
+```powershell
+# 1. Po seedzie – zapisz baseline (timestamp)
+python tests/load/verify_contention.py --save-baseline
+
+# 2. Uruchom test Locust
+
+# 3. Sprawdź wyniki
+python tests/load/verify_contention.py --seeded-rooms 1 --hotel h-waw-1 --room-type single
+```
+
+Skrypt filtruje zdarzenia audytowe od momentu baseline, pokazuje **utworzone vs aktywne**
+rezerwacje per pokój, sprawdza `available < 0` (double-booking) i wykrywa `HOTEL_UPSERTED`
+(restock w trakcie testu).
+
+**Restock w zwykłym load teście** (opcjonalny, domyślnie wyłączony):
+
+```powershell
+$env:LOCUST_RESTOCK = "1"
+locust -f tests/load/locustfile.py ...
+```
 
 ---
 

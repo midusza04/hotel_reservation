@@ -9,8 +9,8 @@ HotelUser  (regular guest)
     cancellation / history reads (15 % each).
 
 AdminUser  (operator)
-    A single admin that periodically reads audit logs and bumps hotel capacity.
-    Spawn at a much lower rate (e.g. --users 20 --spawn-rate 2 gives ~1 admin).
+    Reads audit logs and metrics.  Hotel restock (bump_hotel_capacity) is OFF
+    by default – set env LOCUST_RESTOCK=1 to enable (not for contention tests).
 
 Run (against a locally started cluster on port 8000)
 ----------------------------------------------------
@@ -28,6 +28,7 @@ Run (against a locally started cluster on port 8000)
 
 from __future__ import annotations
 
+import os
 import random
 import uuid
 from typing import Optional
@@ -43,6 +44,10 @@ HOTELS = [
     {"id": "h-waw-1", "rooms": ["single", "double"]},
     {"id": "h-krk-1", "rooms": ["single", "double", "apartment"]},
 ]
+
+_RESTOCK_WEIGHT = (
+    1 if os.getenv("LOCUST_RESTOCK", "").lower() in ("1", "true", "yes") else 0
+)
 
 PAYMENT_METHODS = ["card", "cash"]
 
@@ -152,9 +157,29 @@ class HotelUser(HttpUser):
             if resp.status_code == 200:
                 data = resp.json()
                 if data.get("ok") and data.get("reservation_id"):
+                    # Liczymy oddzielnie udane rezerwacje w statystykach Locust
                     self.reservations.append(data["reservation_id"])
-                # ok=False means no availability – still a valid response
-                resp.success()
+                    resp.success()
+                    # Dodatkowy wpis w statystykach jako osobny "endpoint"
+                    self.environment.events.request.fire(
+                        request_type="POST",
+                        name="/reservations [book] → OK",
+                        response_time=resp.elapsed.total_seconds() * 1000,
+                        response_length=len(resp.content),
+                        exception=None,
+                        context={},
+                    )
+                else:
+                    # Brak dostępności – poprawna odpowiedź biznesowa, nie błąd
+                    resp.success()
+                    self.environment.events.request.fire(
+                        request_type="POST",
+                        name="/reservations [book] → NO_AVAILABILITY",
+                        response_time=resp.elapsed.total_seconds() * 1000,
+                        response_length=len(resp.content),
+                        exception=None,
+                        context={},
+                    )
             elif resp.status_code in (401, 403):
                 self._login(self.username, "pass")
                 resp.failure("Re-login triggered")
@@ -271,10 +296,14 @@ class AdminUser(HttpUser):
             "/auth/login",
             json={"username": "admin", "password": "admin"},
             name="/auth/login [admin]",
+            catch_response=True,
         ) as resp:
             if resp.status_code == 200:
                 self.token = resp.json()["access_token"]
                 self.client.headers.update({"Authorization": f"Bearer {self.token}"})
+                resp.success()
+            else:
+                resp.failure(f"Admin login failed: {resp.status_code}")
 
     def _ah(self) -> dict:
         return {"Authorization": f"Bearer {self.token}"} if self.token else {}
@@ -300,9 +329,9 @@ class AdminUser(HttpUser):
             else:
                 resp.failure(f"Audit logs failed: {resp.status_code}")
 
-    @task(1)
+    @task(_RESTOCK_WEIGHT)
     def bump_hotel_capacity(self) -> None:
-        """Occasionally re-seed a hotel with fresh room capacity."""
+        """Re-seed hotel capacity – only when LOCUST_RESTOCK=1."""
         hotel_id = random.choice(["h-waw-1", "h-krk-1"])
         payload = {
             "hotel_id": hotel_id,

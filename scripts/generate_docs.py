@@ -3,6 +3,7 @@
 The script intentionally uses only the Python standard library.  It creates:
 
 * docs/pydoc/index.html - a tabbed pydoc-style documentation browser.
+* docs/load_tests/index.html - load testing documentation (Locust).
 * docs/raport_hotel_reservation.docx - a Word report describing the project.
 """
 
@@ -21,6 +22,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 APP_DIR = PROJECT_ROOT / "app"
 DOCS_DIR = PROJECT_ROOT / "docs"
 PYDOC_DIR = DOCS_DIR / "pydoc"
+LOAD_TESTS_DIR = DOCS_DIR / "load_tests"
 DIAGRAMS_DIR = DOCS_DIR / "diagrams"
 REPORT_PATH = DOCS_DIR / "raport_hotel_reservation.docx"
 DETAILED_REPORT_PATH = DOCS_DIR / "raport_hotel_reservation_szczegolowy.docx"
@@ -205,7 +207,8 @@ def generate_pydoc_html() -> None:
         "<body>",
         "<header>",
         "<h1>Ray Hotel - dokumentacja pydoc</h1>",
-        "<p>Jedna strona z zakladkami modulow oraz przewijaniem do funkcji, klas i metod.</p>",
+        "<p>Jedna strona z zakladkami modulow. "
+        "<a href='../load_tests/index.html' style='color:var(--brand);font-weight:650'>Testy obciazeniowe</a></p>",
         f"<div class='tabs'>{''.join(tabs)}</div>",
         "</header>",
         "<div class='layout'>",
@@ -226,6 +229,172 @@ def generate_pydoc_html() -> None:
         "</html>",
     ]
     (PYDOC_DIR / "index.html").write_text("\n".join(index), encoding="utf-8")
+
+
+def generate_load_tests_html() -> None:
+    """Generate HTML documentation for Locust load tests."""
+    LOAD_TESTS_DIR.mkdir(parents=True, exist_ok=True)
+    generated = datetime.now().strftime("%Y-%m-%d %H:%M")
+    page = f"""<!doctype html>
+<html lang='pl'>
+<head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<title>Ray Hotel - testy obciazeniowe</title>
+<style>
+:root{{--bg:#f8fafc;--panel:#fff;--ink:#172033;--muted:#64748b;--line:#dbe3ef;--brand:#2563eb;--soft:#eff6ff;--ok:#15803d;--warn:#b45309}}
+*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--ink);font-family:Segoe UI,Arial,sans-serif;line-height:1.55}}
+header{{background:linear-gradient(135deg,#eff6ff,#fff);border-bottom:1px solid var(--line);padding:1.5rem}}
+header h1{{margin:0 0 .35rem;font-size:1.8rem}}header p{{margin:0;color:var(--muted)}}
+.layout{{max-width:960px;margin:0 auto;padding:1.25rem 1.5rem 2.5rem}}
+nav.toc{{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:1rem 1.2rem;margin-bottom:1.25rem}}
+nav.toc a{{display:block;color:var(--brand);text-decoration:none;padding:.25rem 0}}nav.toc a:hover{{text-decoration:underline}}
+section{{scroll-margin-top:24px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:1.1rem 1.25rem;margin:1rem 0}}
+h2{{margin:0 0 .75rem;font-size:1.35rem}}h3{{margin:1.1rem 0 .5rem;font-size:1.05rem;color:var(--ink)}}
+p,li{{color:var(--ink)}}.muted{{color:var(--muted);font-size:.92rem}}
+table{{width:100%;border-collapse:collapse;margin:.75rem 0;font-size:.92rem}}
+th,td{{border:1px solid var(--line);padding:.45rem .6rem;text-align:left;vertical-align:top}}
+th{{background:var(--soft);font-weight:700}}
+pre{{overflow:auto;background:#0f172a;color:#e2e8f0;border-radius:12px;padding:.85rem;font-size:.85rem}}
+code{{font-family:Cascadia Code,Consolas,monospace;font-size:.88rem}}
+.badge{{display:inline-block;background:var(--soft);color:var(--brand);font-size:.72rem;font-weight:800;border-radius:999px;padding:.15rem .55rem;text-transform:uppercase;letter-spacing:.06em}}
+.ok{{color:var(--ok);font-weight:650}}.warn{{color:var(--warn);font-weight:650}}
+footer{{text-align:center;color:var(--muted);font-size:.85rem;padding:1rem}}
+</style>
+</head>
+<body>
+<header>
+<h1>Ray Hotel &mdash; testy obciazeniowe (Locust)</h1>
+<p>Scenariusze, uruchomienie, contention test i interpretacja wynikow. Wygenerowano: {html.escape(generated)}.</p>
+<p class='muted'><a href='../pydoc/index.html'>Dokumentacja modulow (pydoc)</a> &middot;
+<a href='../../tests/load/README.md'>tests/load/README.md</a> &middot;
+<a href='../../tests/load/TEORIA_TESTOW.md'>TEORIA_TESTOW.md</a></p>
+</header>
+<div class='layout'>
+<nav class='toc'>
+<strong>Spis tresci</strong>
+<a href='#wprowadzenie'>1. Wprowadzenie</a>
+<a href='#pliki'>2. Struktura plikow</a>
+<a href='#start'>3. Szybki start</a>
+<a href='#typy'>4. Typy testow</a>
+<a href='#contention'>5. Contention test</a>
+<a href='#weryfikacja'>6. Weryfikacja wynikow</a>
+<a href='#metryki'>7. Metryki i CSV</a>
+<a href='#puapki'>8. Typowe pulapki</a>
+</nav>
+
+<section id='wprowadzenie'>
+<h2>1. Wprowadzenie</h2>
+<p>Testy obciazeniowe symuluja wielu rownoczesnych uzytkownikow HTTP i mierza latencje,
+throughput oraz poprawnosc pod obciazeniem. Locust komunikuje sie wylacznie z API
+(<code>http://localhost:8000</code>) &mdash; nie wymaga lokalnej instalacji Ray.</p>
+<pre><code>pip install locust
+docker compose up -d
+python tests/load/seed_hotels.py --rooms 500
+locust -f tests/load/locustfile.py --host http://localhost:8000 --headless -u 30 -r 5 -t 60s --csv tests/load/results/run1</code></pre>
+<p>Konta testowe: <code>user1</code>&ndash;<code>user50</code> / <code>pass</code>, <code>admin</code> / <code>admin</code>.</p>
+</section>
+
+<section id='pliki'>
+<h2>2. Struktura plikow</h2>
+<table>
+<tr><th>Plik</th><th>Opis</th></tr>
+<tr><td><code>locustfile.py</code></td><td>HotelUser + AdminUser (restock domyslnie wylaczony)</td></tr>
+<tr><td><code>locustfile_pure_contention.py</code></td><td>Tylko book na <code>h-waw-1/single</code></td></tr>
+<tr><td><code>locustfile_contention.py</code></td><td>Book + cancel + search (mixed)</td></tr>
+<tr><td><code>seed_hotels.py</code></td><td>Dosiewanie pojemnosci hoteli</td></tr>
+<tr><td><code>verify_contention.py</code></td><td>Analiza audit logu po contention</td></tr>
+<tr><td><code>run_contention.ps1</code></td><td>Automatyzacja: kill Locust &rarr; seed &rarr; baseline &rarr; test &rarr; verify</td></tr>
+<tr><td><code>results/</code></td><td>CSV z Locust (<code>*_stats.csv</code> itd.)</td></tr>
+</table>
+</section>
+
+<section id='start'>
+<h2>3. Szybki start</h2>
+<h3>PowerShell &mdash; jedna linia (bez backslash)</h3>
+<pre><code>locust -f tests/load/locustfile.py --host http://localhost:8000 --headless -u 30 -r 5 -t 60s --csv tests/load/results/run1</code></pre>
+<h3>Tryb z UI</h3>
+<pre><code>locust -f tests/load/locustfile.py --host http://localhost:8000
+# Otworz http://localhost:8089</code></pre>
+<h3>Opcjonalny restock (AdminUser)</h3>
+<p>Domyslnie <code>bump_hotel_capacity</code> ma wage 0. Wlaczenie:</p>
+<pre><code>$env:LOCUST_RESTOCK = "1"
+locust -f tests/load/locustfile.py ...</code></pre>
+</section>
+
+<section id='typy'>
+<h2>4. Typy testow</h2>
+<table>
+<tr><th>Typ</th><th>Userzy</th><th>Czas</th><th>Plik</th><th>Cel</th></tr>
+<tr><td>Smoke</td><td>5</td><td>30 s</td><td>locustfile.py</td><td>Czy API dziala</td></tr>
+<tr><td>Load</td><td>100</td><td>2 min</td><td>locustfile.py</td><td>Normalne obciazenie</td></tr>
+<tr><td>Stress</td><td>100</td><td>3 min</td><td>locustfile.py</td><td>Punkt nasycenia</td></tr>
+<tr><td>Spike</td><td>1000</td><td>60 s</td><td>locustfile.py</td><td>Nagly skok ruchu</td></tr>
+<tr><td>Soak</td><td>20</td><td>10 min</td><td>locustfile.py</td><td>Wytrzymalosc / wycieki</td></tr>
+<tr><td>Idempotency</td><td>20</td><td>60 s</td><td>locustfile.py</td><td>Duplikaty idempotency_key</td></tr>
+<tr><td>Contention pure</td><td>20</td><td>30 s</td><td>locustfile_pure_contention.py</td><td>Wyscig o 1 pokoj</td></tr>
+<tr><td>Contention mixed</td><td>20</td><td>30 s</td><td>locustfile_contention.py</td><td>Churn book/cancel</td></tr>
+</table>
+</section>
+
+<section id='contention'>
+<h2>5. Contention test</h2>
+<p><span class='badge'>Pure</span> Wielu userow rezerwuje ten sam pokoj jednoczesnie.
+Bez cancel, bez search. Cel: <code>h-waw-1/single</code>, seed <code>--rooms 1</code>.</p>
+<pre><code>.\\tests\\load\\run_contention.ps1</code></pre>
+<p class='ok'>Sukces: 1 aktywna rezerwacja, reszta NO_AVAILABILITY, 0&times; HOTEL_UPSERTED, available &ge; 0.</p>
+
+<h3>Mixed contention</h3>
+<p><span class='badge'>Mixed</span> Book + cancel + search. Pokoj jest zwalniany i rezerwowany ponownie.</p>
+<pre><code>.\\tests\\load\\run_contention.ps1 -Mixed</code></pre>
+<p class='warn'>Suma RESERVATION_CREATED moze byc &gt; pojemnosc &mdash; oceniac aktywne rezerwacje, nie sume CREATED.</p>
+
+<h3>Reczny przeplyw</h3>
+<pre><code>Get-Process locust -ErrorAction SilentlyContinue | Stop-Process -Force
+python tests/load/seed_hotels.py --rooms 1
+python tests/load/verify_contention.py --save-baseline
+locust -f tests/load/locustfile_pure_contention.py --host http://localhost:8000 --headless -u 20 -r 20 -t 30s
+python tests/load/verify_contention.py --seeded-rooms 1 --hotel h-waw-1 --room-type single</code></pre>
+</section>
+
+<section id='weryfikacja'>
+<h2>6. Weryfikacja wynikow</h2>
+<p>Skrypt <code>verify_contention.py</code> laczy sie jako admin i analizuje audit log oraz dostepnosc z <code>/hotels/search</code>.</p>
+<ul>
+<li><strong>Baseline</strong> &mdash; timestamp zapisany po seed, przed testem; liczone sa tylko nowe zdarzenia</li>
+<li><strong>Utworzone vs aktywne</strong> &mdash; parowanie CREATED/CANCELLED po <code>reservation_id</code></li>
+<li><strong>HOTEL_UPSERTED</strong> &mdash; wykrywa restock w trakcie testu (stary Locust w tle)</li>
+<li><strong>available &lt; 0</strong> &mdash; double-booking w stanie magazynu</li>
+</ul>
+</section>
+
+<section id='metryki'>
+<h2>7. Metryki i CSV</h2>
+<p>Locust generuje <code>*_stats.csv</code>, <code>*_stats_history.csv</code>, <code>*_failures.csv</code>.</p>
+<table>
+<tr><th>Kolumna</th><th>Znaczenie</th></tr>
+<tr><td><code>95%</code></td><td>95. percentyl latencji [ms]</td></tr>
+<tr><td><code>Failure Count</code></td><td>Bledy HTTP + logiczne (np. zlamana idempotentnosc)</td></tr>
+<tr><td><code>Requests/s</code></td><td>Throughput</td></tr>
+</table>
+<p><code>ok=false</code> w body rezerwacji (brak pokoi) <strong>nie jest</strong> bledem Locust &mdash; to poprawna odpowiedz biznesowa.</p>
+</section>
+
+<section id='puapki'>
+<h2>8. Typowe pulapki</h2>
+<ul>
+<li><strong>Stary Locust w tle</strong> &mdash; AdminUser doklada pokoje (HOTEL_UPSERTED). Uzyj <code>run_contention.ps1</code>.</li>
+<li><strong>Backslash w PowerShell</strong> &mdash; <code>\\</code> nie laczy linii; uzyj jednej linii lub backtick `` ` ``.</li>
+<li><strong>Brak seed</strong> &mdash; przy malo pokoi szybko brak dostepnosci i wiszace holdy (TTL 300 s).</li>
+<li><strong>Mylenie CREATED z aktywnymi</strong> &mdash; przy mixed contention cancel zwalnia pokoje.</li>
+</ul>
+</section>
+
+<footer>Ray Hotel &mdash; dokumentacja testow obciazeniowych</footer>
+</div>
+</body>
+</html>"""
+    (LOAD_TESTS_DIR / "index.html").write_text(page, encoding="utf-8")
 
 
 def _paragraph(text: str = "", style: str | None = None) -> str:
@@ -1038,12 +1207,14 @@ def generate_docx_report(path: Path = REPORT_PATH) -> Path:
 def main() -> None:
     """Generate all documentation artifacts."""
     generate_pydoc_html()
+    generate_load_tests_html()
     try:
         report_path = generate_docx_report()
     except PermissionError:
         report_path = generate_docx_report(DETAILED_REPORT_PATH)
         print(f"Skipped {REPORT_PATH} because the file is open or locked.")
     print(f"Generated {PYDOC_DIR / 'index.html'}")
+    print(f"Generated {LOAD_TESTS_DIR / 'index.html'}")
     print(f"Generated {report_path}")
 
 

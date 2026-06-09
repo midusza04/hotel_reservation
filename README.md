@@ -21,6 +21,9 @@ Aktualny szkielet projektu ma:
 - `app/models.py` - modele request/response
 - `app/requirements.txt` - zaleznosci backendu
 - `frontend/index.html` - prosty frontend testowy
+- `tests/load/` - testy obciążeniowe Locust (scenariusze, seed, weryfikacja contention)
+- `docs/load_tests/index.html` - dokumentacja testów obciążeniowych (HTML)
+- `docs/pydoc/index.html` - dokumentacja modułów aplikacji (HTML)
 
 ## 3) Jak uruchomic krok po kroku
 
@@ -272,6 +275,86 @@ Invoke-RestMethod -Method GET "http://localhost:8000/admin/audit-logs?event_type
   -Headers @{ Authorization = "Bearer $adminToken" }
 ```
 
+## 5.1) Testy obciążeniowe (Locust)
+
+Testy obciążeniowe symulują wielu równoczesnych użytkowników HTTP i mierzą latencję,
+throughput oraz poprawność pod obciążeniem (w tym brak overbookingu).
+
+**Dokumentacja szczegółowa:**
+- `tests/load/README.md` — instrukcja uruchomienia i typy testów
+- `tests/load/TEORIA_TESTOW.md` — teoria, metryki, interpretacja wyników
+- `docs/load_tests/index.html` — wersja HTML (otwórz w przeglądarce)
+
+### Wymagania
+
+```powershell
+pip install locust
+docker compose up -d   # API musi działać na http://localhost:8000
+```
+
+### Pliki testów
+
+| Plik | Opis |
+|------|------|
+| `tests/load/locustfile.py` | Główny scenariusz: `HotelUser` + `AdminUser` (restock wyłączony domyślnie) |
+| `tests/load/locustfile_contention.py` | Mixed contention: book + cancel + search |
+| `tests/load/locustfile_pure_contention.py` | Pure contention: tylko book, cel `h-waw-1/single` |
+| `tests/load/seed_hotels.py` | Dosiewanie pojemności hoteli przed testem |
+| `tests/load/verify_contention.py` | Weryfikacja wyników contention (audit log + dostępność) |
+| `tests/load/run_contention.ps1` | Automatyzacja: kill Locust → seed → baseline → test → verify |
+
+### Szybki start
+
+```powershell
+mkdir tests/load/results -ErrorAction SilentlyContinue
+python tests/load/seed_hotels.py --rooms 500
+locust -f tests/load/locustfile.py --host http://localhost:8000 --headless -u 30 -r 5 -t 60s --csv tests/load/results/run1
+```
+
+### Typy testów
+
+| Typ | Cel | Polecenie skrócone |
+|-----|-----|-------------------|
+| Smoke | Czy API działa | `-u 5 -t 30s` |
+| Load | Normalne obciążenie | `-u 100 -t 120s` + seed 500 |
+| Stress | Punkt nasycenia | `-u 100 -r 10 -t 180s` |
+| Spike | Nagły skok ruchu | `-u 1000 -r 1000 -t 60s` |
+| Soak | Wytrzymałość / wycieki | `-u 20 -t 10m` |
+| Idempotency | Duplikaty requestów | wbudowane w `locustfile.py` |
+| Contention (pure) | Wyścig o 1 pokój | `.\tests\load\run_contention.ps1` |
+| Contention (mixed) | Book + cancel pod obciążeniem | `.\tests\load\run_contention.ps1 -Mixed` |
+
+### Contention test — wyścig o ostatni pokój
+
+**Pure contention** (zalecany do weryfikacji braku double-bookingu):
+
+```powershell
+.\tests\load\run_contention.ps1
+```
+
+Oczekiwany wynik przy `--rooms 1`:
+- dokładnie **1 aktywna** rezerwacja na `h-waw-1/single`
+- reszta requestów → `NO_AVAILABILITY`
+- **0× HOTEL_UPSERTED** w oknie testu
+- `available >= 0` (brak ujemnej dostępności)
+
+**Ważne:** przed testem zatrzymaj stare procesy Locust — `AdminUser` z wcześniejszego
+`locustfile.py` mógł dokładać pokoje (`HOTEL_UPSERTED`). Skrypt `run_contention.ps1`
+robi to automatycznie.
+
+Opcjonalny restock hoteli w zwykłym load teście (domyślnie **wyłączony**):
+
+```powershell
+$env:LOCUST_RESTOCK = "1"
+locust -f tests/load/locustfile.py ...
+```
+
+### Interpretacja CSV
+
+Po teście headless powstają pliki `*_stats.csv`, `*_stats_history.csv`, `*_failures.csv`.
+Kluczowe kolumny: `95%` (latencja), `Failure Count`, `Requests/s`.
+Szczegóły w `tests/load/README.md` i `tests/load/TEORIA_TESTOW.md`.
+
 ## 6) Plan dalszego rozwoju
 
 ### Etap A - domena i logika
@@ -302,9 +385,9 @@ Invoke-RestMethod -Method GET "http://localhost:8000/admin/audit-logs?event_type
 
 ### Etap E - testy i CI/CD
 
-1. Testy jednostkowe aktorow.
-2. Testy integracyjne przeplywu rezerwacji.
-3. Testy obciazeniowe (konkurencyjne rezerwacje).
+1. Testy jednostkowe aktorow - czesciowo (tests/test_actors.py).
+2. Testy integracyjne przeplywu rezerwacji - czesciowo (tests/test_api.py).
+3. Testy obciazeniowe (Locust) - zrobione (tests/load/, docs/load_tests/).
 4. Pipeline CI (lint, test, build image, deploy).
 
 ## 7) Proponowany najblizszy krok
@@ -317,7 +400,6 @@ Etapy A, B, C, D sa w pelni zrealizowane. Mozna teraz przejsc do:
 - Pelna integracja z API + JWT auth + loading states + obsluga bledow.
 
 **E - Testy i CI/CD:**
-- Testy jednostkowe aktorow (pytest + ray.init local).
-- Testy integracyjne calego przeplywu rezerwacji.
-- Testy obciazeniowe (konkurencyjne rezerwacje) - weryfikacja brak overbookingu pod obciazeniem.
-- Pipeline CI (lint, test, build, deploy).
+- Testy jednostkowe i integracyjne (pytest) - czesciowo zrobione.
+- Testy obciazeniowe Locust (smoke, load, stress, spike, soak, contention) - zrobione.
+- Pipeline CI (lint, test, build, deploy) - do zrobienia.

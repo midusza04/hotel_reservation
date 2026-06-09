@@ -126,12 +126,71 @@ Jest to test poprawności, nie tylko wydajności.
 
 Loguje się jako `admin` i wykonuje:
 - **`read_audit_logs`** (waga 4) — GET /admin/audit-logs z losowym filtrem `event_type`
-- **`bump_hotel_capacity`** (waga 1) — POST /admin/hotels, przywraca dużą liczbę pokoi
 - **`get_metrics`** (waga 2) — GET /metrics w formacie Prometheus
+- **`bump_hotel_capacity`** (waga 0 domyślnie) — POST /admin/hotels, restock pokoi
 
-`AdminUser` ma ustawione `weight = 1`, co przy `-u 30` da ~1–2 adminów.
-Admin celowo wywołuje `/admin/hotels` w trakcie testu — weryfikuje,
-że `InventoryActor.upsert_hotel()` działa bezpiecznie współbieżnie z bookingami.
+Restock hoteli (`bump_hotel_capacity`) jest **wyłączony domyślnie**, żeby nie
+zakłócać testów contention. Włączenie:
+
+```powershell
+$env:LOCUST_RESTOCK = "1"
+locust -f tests/load/locustfile.py ...
+```
+
+Gdy włączony, weryfikuje współbieżność `InventoryActor.upsert_hotel()` z bookingami.
+Przy testach wyścigu o pokój **nie włączaj** restocku i zatrzymaj stare procesy Locust.
+
+### 3.3 Pure contention — `locustfile_pure_contention.py`
+
+Scenariusz **tylko rezerwacji** — bez cancel, search ani historii.
+
+| Parametr | Wartość |
+|----------|---------|
+| Klasa | `PureContentionUser` |
+| Cel | `h-waw-1` / `single` |
+| `wait_time` | 0–0.1 s (agresywny wyścig) |
+| Seed | `--rooms 1` → 1 pokój single na hotel |
+
+Przy 20 userach i ramp 20/s wszyscy startują naraz i walczą o ten sam pokój.
+Oczekiwanie: **1× book OK**, reszta `NO_AVAILABILITY`, **0× HOTEL_UPSERTED**.
+
+Uruchomienie: `.\tests\load\run_contention.ps1` (domyślnie pure).
+
+### 3.4 Mixed contention — `locustfile_contention.py`
+
+Scenariusz z anulowaniami — symuluje churn, nie czysty wyścig.
+
+| Zadanie | Waga | Opis |
+|---------|------|------|
+| `book_room` | 6 | Rezerwacja losowego hotelu/pokoju |
+| `cancel_reservation` | 3 | Anulowanie własnej rezerwacji |
+| `search_hotels` | 4 | POST /hotels/search |
+| `check_history` | 2 | GET /users/{id}/reservations |
+
+Anulowanie zwalnia pokój → kolejna rezerwacja może się udać. Dlatego liczba
+`RESERVATION_CREATED` w audit logu może być **większa** niż liczba pokoi,
+mimo braku double-bookingu. Weryfikacja musi patrzeć na **aktywne** rezerwacje.
+
+Uruchomienie: `.\tests\load\run_contention.ps1 -Mixed`.
+
+### 3.5 Weryfikacja — `verify_contention.py`
+
+Skrypt łączy się jako admin i analizuje audit log + bieżącą dostępność.
+
+**Przepływ:**
+1. `seed_hotels.py --rooms 1`
+2. `--save-baseline` — zapisuje timestamp (tylko zdarzenia **po** tym momencie)
+3. Uruchom Locust (pure lub mixed)
+4. `--seeded-rooms 1 [--hotel h-waw-1 --room-type single]`
+
+**Metryki werdyktu:**
+- `HOTEL_UPSERTED = 0` w oknie testu → brak restocku w trakcie
+- `available >= 0` dla wszystkich typów pokoi → brak overbookingu
+- `aktywne <= seeded_rooms` dla wskazanego hotelu/typu (pure test)
+
+**Utworzone vs aktywne:** skrypt liczy aktywne rezerwacje przez parowanie
+`RESERVATION_CREATED` z `RESERVATION_CANCELLED` po `entity_id` (reservation_id).
+Suma `CREATED` sama w sobie **nie** jest miarodajna przy scenariuszu z cancel.
 
 ---
 
@@ -294,15 +353,16 @@ jeśli nie dosiejemy dużo pokoi.
 
 ## 7. Porównanie typów testów — zestawienie
 
-| Typ testu | Czas | Userzy | Cel | Główna obserwacja |
-|-----------|------|--------|-----|-------------------|
-| Smoke | 30 s | 5 | "Czy działa?" | 0 % błędów |
-| Load | 2 min | 30 | "Normalne użycie" | p95, failure rate |
-| Stress | 3 min | 100 | "Gdzie jest limit?" | Punkt saturacji |
-| Spike | 60 s | 80 (ramp 80/s) | "Nagły skok" | Czy przeżyje? |
-| Soak | 10 min | 20 | "Wytrzymałość" | Czy latencja rośnie? |
-| Contention | 30 s | 20 (ramp 20/s) | "Wyścig o pokój" | Brak double-booking |
-| Idempotency | 60 s | 20 | "Duplikaty" | 0 błędów idempotentności |
+| Typ testu | Czas | Userzy | Plik Locust | Cel | Główna obserwacja |
+|-----------|------|--------|-------------|-----|-------------------|
+| Smoke | 30 s | 5 | `locustfile.py` | „Czy działa?" | 0 % błędów |
+| Load | 2 min | 100 | `locustfile.py` | „Normalne użycie" | p95, failure rate |
+| Stress | 3 min | 100 | `locustfile.py` | „Gdzie jest limit?" | Punkt saturacji |
+| Spike | 60 s | 1000 | `locustfile.py` | „Nagły skok" | Czy przeżyje? |
+| Soak | 10 min | 20 | `locustfile.py` | „Wytrzymałość" | Czy latencja rośnie? |
+| Contention pure | 30 s | 20 (ramp 20/s) | `locustfile_pure_contention.py` | Wyścig o 1 pokój | 1 aktywna rez., 0 upsert |
+| Contention mixed | 30 s | 20 | `locustfile_contention.py` | Churn book/cancel | Aktywne ≤ pojemność |
+| Idempotency | 60 s | 20 | `locustfile.py` | Duplikaty | 0 błędów idempotentności |
 
 ---
 
@@ -372,4 +432,9 @@ Możliwa optymalizacja: uruchomić wiele instancji koordynatora
 | **Saga** | Wzorzec: sekwencja kroków z mechanizmem rollback przy błędzie |
 | **Actor model** | Model obliczeniowy: izolowane obiekty komunikują się przez wiadomości |
 | **Head-of-line blocking** | Kolejne requesty czekają, bo actor obsługuje jeden request na raz |
+| **Contention** | Test wyścigu wielu userów o ograniczoną liczbę pokoi |
+| **Pure contention** | Wariant bez cancel — mierzy równoległy dostęp do 1 pokoju |
+| **Mixed contention** | Wariant z cancel — mierzy churn; suma CREATED może >> pojemność |
+| **Aktywna rezerwacja** | Utworzona minus anulowana (nie anulowana w audit logu) |
+| **Baseline** | Timestamp zapisany przed testem; weryfikacja liczy tylko nowe zdarzenia |
 | **Greenlet** | Lekki wątek współpracujący używany przez Locust do symulacji userów |

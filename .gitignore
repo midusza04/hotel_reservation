@@ -23,3 +23,7 @@ venv/
 Thumbs.db
 Desktop.ini
 *.log
+
+# Locust – wyniki testów obciążeniowych (CSV, baseline weryfikacji)
+tests/load/results/*
+!tests/load/results/.gitkeep
